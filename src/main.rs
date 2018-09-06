@@ -1,11 +1,13 @@
 extern crate clap;
 
+mod conv_pass;
 mod conv_rust;
 mod filter;
 mod parser;
 mod token;
 
-use conv_rust::convert_rust;
+use conv_pass::Pass;
+use conv_rust::Rust;
 use filter::filter_ast;
 use parser::*;
 use std::fs::File;
@@ -47,22 +49,20 @@ fn main() {
         .map(|t| t.collect())
         .unwrap_or_else(|| vec![]);
     let contents = read_file(&source).expect("Failed to read file");
-    let ast = parse(&contents).expect("Parse failed");
-
-    let filtered = filter_ast(ast, types);
 
     let output = match lang {
-        "none" => vec![Output {
-            file_name: source.to_string(),
-            contents: format!("{}", filtered),
-        }],
-        "rust" => convert_rust(filtered),
+        "none" => {
+            let f = filter_ast(&parse::<Pass>(&contents).expect("Parse failed"), &types);
+            format!("{}", f)
+        }
+        "rust" => {
+            let f = filter_ast(&parse::<Rust>(&contents).expect("Parse failed"), &types);
+            format!("{}", f)
+        }
         _ => panic!("Unknown output"),
     };
 
-    for o in output {
-        print!("{}", o);
-    }
+    print!("{}", output);
 }
 
 fn read_file(source: &str) -> std::io::Result<String> {

@@ -1,45 +1,39 @@
+use std::marker::PhantomData;
 use token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
 
-include!("display.rs");
+//include!("display.rs");
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Ast<'a> {
-    pub source: &'a str,
-    pub tree: Vec<Tree>,
+pub struct Ast<'a, T> {
+    pub tree: Vec<Tree<'a, T>>,
+    _ph: PhantomData<T>,
 }
 
-impl<'a> Ast<'a> {
-    pub fn find(&self, name: &str) -> Option<&Tree> {
-        self.tree.iter().find(|t| t.name(self.source) == name)
-    }
-
-    pub fn is_scalar(&self, chunk: &Chunk) -> bool {
-        let name = chunk.apply(self.source);
-        match name {
-            "Int" | "Float" | "String" | "Boolean" | "ID" | "Date" => true,
-            _ => false,
+impl<'a, T> Ast<'a, T> {
+    pub fn new(tree: Vec<Tree<'a, T>>) -> Self {
+        Ast {
+            tree,
+            _ph: PhantomData,
         }
     }
-
-    #[cfg(test)]
-    pub fn to_string(&self) -> String {
-        format!("{}", self)
-    }
+    // pub fn find(&self, name: &str) -> Option<&Tree<T>> {
+    //     self.tree.iter().find(|t| t.name() == name)
+    // }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Tree {
-    Ty(Type),
-    En(Enum),
-    Un(Union),
+pub enum Tree<'a, T> {
+    Ty(Type<'a, T>),
+    En(Enum<'a, T>),
+    Un(Union<'a, T>),
 }
 
-impl Tree {
-    pub fn name<'a>(&self, source: &'a str) -> &'a str {
+impl<'a, T> Tree<'a, T> {
+    pub fn name(&self) -> &'a str {
         match self {
-            Tree::Ty(t) => t.name.apply(source),
-            Tree::En(e) => e.name.apply(source),
-            Tree::Un(u) => u.name.apply(source),
+            Tree::Ty(t) => t.name,
+            Tree::En(e) => e.name,
+            Tree::Un(u) => u.name,
         }
     }
 }
@@ -50,30 +44,34 @@ impl Tree {
 //   length(unit: LengthUnit = METER): Float
 // }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Type {
-    pub doc: Option<Chunk>,
-    pub name: Chunk,
-    pub fields: Vec<Field>,
+pub struct Type<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    pub fields: Vec<Field<'a, T>>,
+    _ph: PhantomData<T>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Field {
-    pub doc: Option<Chunk>,
-    pub name: Chunk,
-    pub expr: TypeExpr,
-    pub args: Vec<FieldArg>,
+pub struct Field<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    pub expr: TypeExpr<'a, T>,
+    pub args: Vec<FieldArg<'a, T>>,
+    _ph: PhantomData<T>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct FieldArg {
-    pub name: Chunk,
-    pub expr: TypeExpr,
-    pub def: Option<Chunk>,
+pub struct FieldArg<'a, T> {
+    pub name: &'a str,
+    pub expr: TypeExpr<'a, T>,
+    pub def: Option<&'a str>,
+    _ph: PhantomData<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TypeExpr {
-    pub typ: Chunk,
+pub struct TypeExpr<'a, T> {
+    pub typ: &'a str,
     pub null: bool,
     pub arr: Arr,
+    _ph: PhantomData<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -103,23 +101,26 @@ impl Arr {
 //   JEDI
 // }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Enum {
-    pub doc: Option<Chunk>,
-    pub name: Chunk,
-    pub values: Vec<EnumValue>,
+pub struct Enum<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    pub values: Vec<EnumValue<'a, T>>,
+    _ph: PhantomData<T>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct EnumValue {
-    pub doc: Option<Chunk>,
-    pub value: Chunk,
+pub struct EnumValue<'a, T> {
+    pub doc: Option<&'a str>,
+    pub value: &'a str,
+    _ph: PhantomData<T>,
 }
 
 // union SearchResult = Human | Droid | Starship
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Union {
-    pub doc: Option<Chunk>,
-    pub name: Chunk,
-    pub names: Vec<Chunk>,
+pub struct Union<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    pub names: Vec<&'a str>,
+    _ph: PhantomData<T>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -154,12 +155,12 @@ fn unexpected_end(cause: &str) -> SyntaxError {
     }
 }
 
-fn expect_name(source: &str, tok: &mut TokenIter) -> ParseResult<Chunk> {
+fn expect_name<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<&'a str> {
     tok.consume()
         .ok_or_else(|| unexpected_end("Expected name, but found end of input"))
         .and_then(|chunk| {
             if chunk.token == Token::Name {
-                Ok(chunk)
+                Ok(chunk.apply(source))
             } else {
                 err_syntax_error("Expected name", &chunk, source)
             }
@@ -183,7 +184,7 @@ fn expect_symbol(source: &str, tok: &mut TokenIter, symbol: SYMBOL) -> ParseResu
         })
 }
 
-pub fn parse(source: &str) -> ParseResult<Ast> {
+pub fn parse<T>(source: &str) -> ParseResult<Ast<T>> {
     let mut tok = tokenize(source);
     let mut tree = vec![];
     loop {
@@ -205,33 +206,42 @@ pub fn parse(source: &str) -> ParseResult<Ast> {
             }
         }
     }
-    Ok(Ast { source, tree })
+    Ok(Ast {
+        tree,
+        _ph: PhantomData,
+    })
 }
 
-fn parse_doc(source: &str, tok: &mut TokenIter) -> ParseResult<Option<Chunk>> {
+fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a str>> {
     tok.skip_white();
     if tok.peek_is_symbol(SYMBOL::DQuote) {
         let start = tok.consume().unwrap();
         tok.find(|t| t.is_symbol(SYMBOL::DQuote))
-            .map(|c| Some(start.extend(&c)))
+            .map(|c| start.extend(&c))
+            .map(|c| Some(c.apply(source)))
             .ok_or_else(|| syntax_error("Unbalanced doc quotes", &start, source))
     } else if tok.peek_is_symbol(SYMBOL::TDQuote) {
         let start = tok.consume().unwrap();
         tok.find(|t| t.is_symbol(SYMBOL::TDQuote))
-            .map(|c| Some(start.extend(&c)))
+            .map(|c| start.extend(&c))
+            .map(|c| Some(c.apply(source)))
             .ok_or_else(|| syntax_error("Unbalanced doc triple-quotes", &start, source))
     } else {
         Ok(None)
     }
 }
 
-fn parse_type(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseResult<Tree> {
+fn parse_type<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Tree<'a, T>> {
     // keyword is "type" and tok is positioned after that
     tok.skip_white();
     let name = expect_name(source, tok)?;
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::OpCurl)?;
-    let mut fields: Vec<Field> = vec![];
+    let mut fields: Vec<Field<T>> = vec![];
     loop {
         tok.skip_white();
         if tok.peek_is_symbol(SYMBOL::ClCurl) {
@@ -242,10 +252,19 @@ fn parse_type(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseRes
         tok.skip_white();
         fields.push(parse_field(source, tok, doc)?);
     }
-    Ok(Tree::Ty(Type { doc, name, fields }))
+    Ok(Tree::Ty(Type {
+        doc,
+        name,
+        fields,
+        _ph: PhantomData,
+    }))
 }
 
-fn parse_field(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseResult<Field> {
+fn parse_field<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Field<'a, T>> {
     let name = expect_name(source, tok)?;
     tok.skip_white();
     let mut args = vec![];
@@ -273,10 +292,11 @@ fn parse_field(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseRe
         name,
         expr,
         args,
+        _ph: PhantomData,
     })
 }
 
-fn parse_type_expr(source: &str, tok: &mut TokenIter) -> ParseResult<TypeExpr> {
+fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<TypeExpr<'a, T>> {
     tok.skip_white();
     let is_arr = tok.peek_is_symbol(SYMBOL::OpSquar);
     if is_arr {
@@ -304,10 +324,15 @@ fn parse_type_expr(source: &str, tok: &mut TokenIter) -> ParseResult<TypeExpr> {
     } else {
         Arr::No
     };
-    Ok(TypeExpr { typ, null, arr })
+    Ok(TypeExpr {
+        typ,
+        null,
+        arr,
+        _ph: PhantomData,
+    })
 }
 
-fn parse_field_arg(source: &str, tok: &mut TokenIter) -> ParseResult<FieldArg> {
+fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<FieldArg<'a, T>> {
     let name = expect_name(source, tok)?;
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::Colon)?;
@@ -320,10 +345,19 @@ fn parse_field_arg(source: &str, tok: &mut TokenIter) -> ParseResult<FieldArg> {
     } else {
         None
     };
-    Ok(FieldArg { name, expr, def })
+    Ok(FieldArg {
+        name,
+        expr,
+        def,
+        _ph: PhantomData,
+    })
 }
 
-fn parse_enum(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseResult<Tree> {
+fn parse_enum<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Tree<'a, T>> {
     // keyword is "enum" and tok is positioned after that
     tok.skip_white();
     let name = expect_name(source, tok)?;
@@ -339,12 +373,25 @@ fn parse_enum(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseRes
         let doc = parse_doc(source, tok)?;
         tok.skip_white();
         let value = expect_name(source, tok)?;
-        values.push(EnumValue { doc, value });
+        values.push(EnumValue {
+            doc,
+            value,
+            _ph: PhantomData,
+        });
     }
-    Ok(Tree::En(Enum { doc, name, values }))
+    Ok(Tree::En(Enum {
+        doc,
+        name,
+        values,
+        _ph: PhantomData,
+    }))
 }
 
-fn parse_union(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseResult<Tree> {
+fn parse_union<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Tree<'a, T>> {
     // keyword is "union" and tok is positioned after that
     tok.skip_white();
     let name = expect_name(source, tok)?;
@@ -359,16 +406,22 @@ fn parse_union(source: &str, tok: &mut TokenIter, doc: Option<Chunk>) -> ParseRe
             break;
         }
     }
-    Ok(Tree::Un(Union { doc, name, names }))
+    Ok(Tree::Un(Union {
+        doc,
+        name,
+        names,
+        _ph: PhantomData,
+    }))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use conv_pass::Pass;
 
     #[test]
     fn parse_type_no_doc() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type Participant {
               _id: ID
@@ -385,7 +438,7 @@ mod tests {
 
     #[test]
     fn parse_type_some_doc() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             "Some doc"
             type Participant {
@@ -404,7 +457,7 @@ mod tests {
 
     #[test]
     fn parse_type_full_doc() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             "Some doc"
             type Participant {
@@ -425,7 +478,7 @@ mod tests {
 
     #[test]
     fn parse_type_field_args() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type Query {
               recording(_id: ID!): Recording
@@ -442,7 +495,7 @@ mod tests {
 
     #[test]
     fn parse_type_multi_field_args() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type Mutation {
               deleteUser(userId: ID!, dryRun: Boolean) : DeleteUserResponse
@@ -459,7 +512,7 @@ mod tests {
 
     #[test]
     fn parse_type_array_field_nullable() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type User {
               projects: [ Project! ]
@@ -476,7 +529,7 @@ mod tests {
 
     #[test]
     fn parse_type_array_field() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type User {
               projects: [ Project! ]!
@@ -493,7 +546,7 @@ mod tests {
 
     #[test]
     fn parse_type_array_field_args() -> ParseResult<()> {
-        let r = parse(
+        let r = parse::<Pass>(
             r#"
             type Query {
               usersByEmail(email: [ String! ]): [ User ]
