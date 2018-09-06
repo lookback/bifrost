@@ -44,28 +44,26 @@ fn main() {
 
     let source = m.value_of("source").unwrap();
     let lang = m.value_of("lang").unwrap();
-    let types: Vec<&str> = m
-        .values_of("types")
-        .map(|t| t.collect())
-        .unwrap_or_else(|| vec![]);
+    let types: Option<Vec<&str>> = m.values_of("types").map(|t| t.collect());
     let gql = read_file(&source).expect("Failed to read file");
 
     let output = match lang {
-        "pass" => make_output::<Pass>(&gql, &types),
-        "rust" => make_output::<Rust>(&gql, &types),
+        "pass" => make_output::<Pass>(&gql, types),
+        "rust" => make_output::<Rust>(&gql, types),
         _ => panic!("Unknown output"),
     };
 
     print!("{}", output);
 }
 
-fn make_output<'a, T>(gql: &'a str, types: &Vec<&str>) -> String
+fn make_output<'a, T>(gql: &'a str, types: Option<Vec<&str>>) -> String
 where
     T: Clone,
     parser::Ast<'a, T>: std::fmt::Display,
 {
     let ast = parse::<T>(gql).expect("Parse failed");
-    let flt = filter_ast(&ast, types);
+    let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+    let flt = filter_ast(&ast, &types);
     format!("{}", flt)
 }
 

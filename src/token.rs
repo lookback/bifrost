@@ -51,7 +51,7 @@ pub struct Chunk {
 }
 
 impl<'a> Chunk {
-    fn new(index: usize, len: usize, token: Token) -> Chunk {
+    pub fn new(index: usize, len: usize, token: Token) -> Chunk {
         Chunk { index, len, token }
     }
     pub fn is_symbol(&self, symbol: SYMBOL) -> bool {

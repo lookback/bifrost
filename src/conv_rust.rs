@@ -24,7 +24,10 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        for t in &self.tree {
+        for (idx, t) in self.tree.iter().enumerate() {
+            if idx > 0 {
+                write!(f, "\n")?;
+            }
             write!(f, "{}", t)?;
         }
         Ok(())

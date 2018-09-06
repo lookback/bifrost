@@ -218,12 +218,14 @@ fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a
         let start = tok.consume().unwrap();
         tok.find(|t| t.is_symbol(SYMBOL::DQuote))
             .map(|c| start.extend(&c))
+            .map(|c| Chunk::new(c.index + 1, c.len - 2, Token::Name))
             .map(|c| Some(c.apply(source)))
             .ok_or_else(|| syntax_error("Unbalanced doc quotes", &start, source))
     } else if tok.peek_is_symbol(SYMBOL::TDQuote) {
         let start = tok.consume().unwrap();
         tok.find(|t| t.is_symbol(SYMBOL::TDQuote))
             .map(|c| start.extend(&c))
+            .map(|c| Chunk::new(c.index + 3, c.len - 6, Token::Name))
             .map(|c| Some(c.apply(source)))
             .ok_or_else(|| syntax_error("Unbalanced doc triple-quotes", &start, source))
     } else {

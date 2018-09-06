@@ -14,7 +14,10 @@ pub struct Pass {}
 
 impl<'a> Display for Ast<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        for t in &self.tree {
+        for (idx, t) in self.tree.iter().enumerate() {
+            if idx > 0 {
+                write!(f, "\n")?;
+            }
             write!(f, "{}", t)?;
         }
         Ok(())
@@ -32,10 +35,20 @@ impl<'a> Display for Tree<'a, Pass> {
     }
 }
 
+fn write_doc(f: &mut Formatter, indent: &str, doc: &str) -> Result {
+    let need_triple = doc.chars().find(|c| *c == '"' || *c == '\n').is_some();
+    if need_triple {
+        writeln!(f, "{}\"\"\"{}\"\"\"", indent, doc)?;
+    } else {
+        writeln!(f, "{}\"{}\"", indent, doc)?;
+    }
+    Ok(())
+}
+
 impl<'a> Display for Type<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if let Some(doc) = self.doc {
-            writeln!(f, "{}", doc)?;
+            write_doc(f, "", doc)?;
         }
         writeln!(f, "type {} {{", self.name)?;
         for field in &self.fields {
@@ -49,7 +62,7 @@ impl<'a> Display for Type<'a, Pass> {
 impl<'a> Display for Field<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if let Some(doc) = self.doc {
-            writeln!(f, "  {}", doc)?;
+            write_doc(f, "  ", doc)?;
         }
         write!(f, "  {}", self.name)?;
         if !self.args.is_empty() {
@@ -99,7 +112,7 @@ impl<'a> Display for FieldArg<'a, Pass> {
 impl<'a> Display for Enum<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if let Some(doc) = self.doc {
-            writeln!(f, "{}", doc)?;
+            write_doc(f, "", doc)?;
         }
         writeln!(f, "enum {} {{", self.name)?;
         for ev in &self.values {
@@ -113,9 +126,9 @@ impl<'a> Display for Enum<'a, Pass> {
 impl<'a> Display for EnumValue<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if let Some(doc) = self.doc {
-            writeln!(f, "  {}", doc)?;
+            write_doc(f, "  ", doc)?;
         }
-        writeln!(f, "  {},", self.value)?;
+        write!(f, "  {},", self.value)?;
         Ok(())
     }
 }
