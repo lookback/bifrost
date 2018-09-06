@@ -1,6 +1,7 @@
 use parser::Enum;
 use parser::Field;
 use parser::Type;
+use parser::TypeExpr;
 use parser::Union;
 use parser::{Ast, Tree};
 use std::fmt::Display;
@@ -59,22 +60,28 @@ impl<'a> Display for Field<'a, Rust> {
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
         }
-        write!(f, "  pub {}: ", self.name)?;
-        if expr.arr.is_arr() {
-            if expr.arr.is_null() {
+        write!(f, "  pub {}: {}", self.name, self.expr)?;
+        Ok(())
+    }
+}
+
+impl<'a> Display for TypeExpr<'a, Rust> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        if self.arr.is_arr() {
+            if self.arr.is_null() {
                 write!(f, "Option<")?;
             }
             write!(f, "Vec<")?;
         }
-        if expr.null {
+        if self.null {
             write!(f, "Option<")?;
         }
-        write!(f, "{}", translate_typ(expr.typ))?;
-        if expr.null {
+        write!(f, "{}", translate_typ(self.typ))?;
+        if self.null {
             write!(f, ">")?;
         }
-        if expr.arr.is_arr() {
-            if expr.arr.is_null() {
+        if self.arr.is_arr() {
+            if self.arr.is_null() {
                 write!(f, ">")?;
             }
             write!(f, ">")?;
