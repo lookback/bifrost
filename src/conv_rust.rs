@@ -24,7 +24,7 @@ fn translate_typ(typ: &str) -> &str {
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         for t in &self.tree {
-            writeln!(f, "{}", t)?;
+            write!(f, "{}", t)?;
         }
         Ok(())
     }
@@ -33,9 +33,9 @@ impl<'a> Display for Ast<'a, Rust> {
 impl<'a> Display for Tree<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            Tree::Ty(t) => writeln!(f, "{}", t)?,
-            Tree::En(e) => writeln!(f, "{}", e)?,
-            Tree::Un(u) => writeln!(f, "{}", u)?,
+            Tree::Ty(t) => write!(f, "{}", t)?,
+            Tree::En(e) => write!(f, "{}", e)?,
+            Tree::Un(u) => write!(f, "{}", u)?,
         }
         Ok(())
     }

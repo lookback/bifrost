@@ -33,7 +33,7 @@ fn main() {
             clap::Arg::with_name("lang")
                 .help("Language to convert to")
                 .required(true)
-                .possible_values(&["none", "rust"]),
+                .possible_values(&["pass", "rust"]),
         )
         .arg(
             clap::Arg::with_name("source")
@@ -48,21 +48,25 @@ fn main() {
         .values_of("types")
         .map(|t| t.collect())
         .unwrap_or_else(|| vec![]);
-    let contents = read_file(&source).expect("Failed to read file");
+    let gql = read_file(&source).expect("Failed to read file");
 
     let output = match lang {
-        "none" => {
-            let f = filter_ast(&parse::<Pass>(&contents).expect("Parse failed"), &types);
-            format!("{}", f)
-        }
-        "rust" => {
-            let f = filter_ast(&parse::<Rust>(&contents).expect("Parse failed"), &types);
-            format!("{}", f)
-        }
+        "pass" => make_output::<Pass>(&gql, &types),
+        "rust" => make_output::<Rust>(&gql, &types),
         _ => panic!("Unknown output"),
     };
 
     print!("{}", output);
+}
+
+fn make_output<'a, T>(gql: &'a str, types: &Vec<&str>) -> String
+where
+    T: Clone,
+    parser::Ast<'a, T>: std::fmt::Display,
+{
+    let ast = parse::<T>(gql).expect("Parse failed");
+    let flt = filter_ast(&ast, types);
+    format!("{}", flt)
 }
 
 fn read_file(source: &str) -> std::io::Result<String> {
