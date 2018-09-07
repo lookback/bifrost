@@ -16,9 +16,28 @@ impl<'a, T> Ast<'a, T> {
             _ph: PhantomData,
         }
     }
-    // pub fn find(&self, name: &str) -> Option<&Tree<T>> {
-    //     self.tree.iter().find(|t| t.name() == name)
-    // }
+    pub fn has_type<P>(&self, mut pred: P) -> bool
+        where P: FnMut(&TypeExpr<'a, T>) -> bool
+    {
+        for tr in &self.tree {
+            match tr {
+                Tree::Ty(t) => {
+                    for f in & t.fields {
+                        if pred(&f.expr) {
+                            return true;
+                        }
+                        for a in &f.args {
+                            if pred(&a.expr) {
+                                return true;
+                            }
+                        }
+                    }
+                },
+                _ => (),
+            }
+        }
+        false
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

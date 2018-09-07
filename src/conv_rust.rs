@@ -24,6 +24,12 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        if self.has_type(|t| t.typ == "Date") {
+            writeln!(f, "use chrono::{{Date, Utc}};\n")?;
+        }
+        if self.has_type(|t| t.typ == "ID") {
+            writeln!(f, "pub type ID = String;\n")?;
+        }
         for (idx, t) in self.tree.iter().enumerate() {
             if idx > 0 {
                 write!(f, "\n")?;
@@ -63,7 +69,7 @@ impl<'a> Display for Field<'a, Rust> {
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
         }
-        write!(f, "  pub {}: {}", self.name, self.expr)?;
+        write!(f, "  pub {}: {},", self.name, self.expr)?;
         Ok(())
     }
 }
