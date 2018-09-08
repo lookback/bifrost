@@ -70,6 +70,9 @@ impl<'a> Display for Field<'a, Rust> {
             write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
         }
         write!(f, "  pub {}: {},", self.name, self.expr)?;
+        if !self.args.is_empty() {
+            panic!("Can't generate field with args");
+        }
         Ok(())
     }
 }
