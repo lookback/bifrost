@@ -48,23 +48,22 @@ fn main() {
     let gql = read_file(&source).expect("Failed to read file");
 
     let output = match lang {
-        "pass" => make_output::<Pass>(&gql, types),
-        "rust" => make_output::<Rust>(&gql, types),
+        "pass" => {
+            let ast = parse::<Pass>(&gql).expect("Parse failed");
+            let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+            let flt = filter_ast(&ast, &types);
+            format!("{}", flt)
+        }
+        "rust" => {
+            let ast = parse::<Rust>(&gql).expect("Parse failed");
+            let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+            let flt = filter_ast(&ast, &types);
+            format!("{}", flt)
+        }
         _ => panic!("Unknown output"),
     };
 
     print!("{}", output);
-}
-
-fn make_output<'a, T>(gql: &'a str, types: Option<Vec<&str>>) -> String
-where
-    T: Clone,
-    parser::Ast<'a, T>: std::fmt::Display,
-{
-    let ast = parse::<T>(gql).expect("Parse failed");
-    let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
-    let flt = filter_ast(&ast, &types);
-    format!("{}", flt)
 }
 
 fn read_file(source: &str) -> std::io::Result<String> {

@@ -1,26 +1,41 @@
-use parser::Ast;
+use parser::{Ast, Tree};
 
-pub fn filter_ast<'a, T>(ast: &Ast<'a, T>, types: &Vec<&str>) -> Ast<'a, T>
+pub fn filter_ast<'a, T>(ast: &'a Ast<'a, T>, types: &Vec<&str>) -> Ast<'a, T>
 where
     T: Clone,
 {
-    // filter the ast to only keep those types types vec.
-    let mut filt: Vec<_> = ast
-        .tree
-        .iter()
-        .filter_map(|t| {
-            types
-                .iter()
-                .enumerate()
-                .find(|(_, n)| **n == t.name())
-                .map(|(idx, _)| (idx, t))
-        })
-        .collect();
+    let mut found: Vec<_> = types.iter().filter_map(|n| ast.get_tree(n)).collect();
+    for t in types {
+        resolve(&ast, &mut found, *t);
+    }
 
-    filt.sort_unstable_by(|(pa, _), (pb, _)| pa.cmp(pb));
-
-    let tree: Vec<_> = filt.into_iter().map(|(_, t)| t).cloned().collect();
+    let mut tree: Vec<_> = found.into_iter().cloned().collect();
+    tree.reverse();
 
     // resulting filtered ast
     Ast::new(tree)
+}
+
+fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &str) {
+    match ast.get_tree(cur) {
+        None => (),
+        Some(tree) => match tree {
+            Tree::Ty(t) => {
+                let mut new: Vec<_> = t
+                    .fields
+                    .iter()
+                    .filter_map(|f| ast.get_tree(f.expr.typ))
+                    .filter(|t1| found.iter().find(|t2| t1.name() == t2.name()).is_none())
+                    .collect();
+                for n in new {
+                    if found.iter().find(|t| t.name() == n.name()).is_none() {
+                        found.push(n);
+                    }
+                    resolve(ast, found, n.name());
+                }
+            }
+            Tree::En(_) => (),
+            Tree::Un(_) => (),
+        },
+    }
 }

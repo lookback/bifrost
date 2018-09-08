@@ -10,19 +10,21 @@ pub struct Ast<'a, T> {
 }
 
 impl<'a, T> Ast<'a, T> {
-    pub fn new(tree: Vec<Tree<'a, T>>) -> Self {
+    pub fn new(tree: Vec<Tree<'a, T>>) -> Ast<'a, T> {
         Ast {
             tree,
             _ph: PhantomData,
         }
     }
+
     pub fn has_type<P>(&self, mut pred: P) -> bool
-        where P: FnMut(&TypeExpr<'a, T>) -> bool
+    where
+        P: FnMut(&TypeExpr<'a, T>) -> bool,
     {
         for tr in &self.tree {
             match tr {
                 Tree::Ty(t) => {
-                    for f in & t.fields {
+                    for f in &t.fields {
                         if pred(&f.expr) {
                             return true;
                         }
@@ -32,11 +34,15 @@ impl<'a, T> Ast<'a, T> {
                             }
                         }
                     }
-                },
+                }
                 _ => (),
             }
         }
         false
+    }
+
+    pub fn get_tree(&'a self, name: &str) -> Option<&'a Tree<'a, T>> {
+        self.tree.iter().find(|f| f.name() == name)
     }
 }
 
