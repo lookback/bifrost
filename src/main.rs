@@ -47,16 +47,16 @@ fn main() {
     let types: Option<Vec<&str>> = m.values_of("types").map(|t| t.collect());
     let gql = read_file(&source).expect("Failed to read file");
 
+    let ast = parse::<Pass>(&gql).expect("Parse failed");
+    let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+
     let output = match lang {
         "pass" => {
-            let ast = parse::<Pass>(&gql).expect("Parse failed");
-            let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
             let flt = filter_ast(&ast, &types);
             format!("{}", flt)
         }
         "rust" => {
-            let ast = parse::<Rust>(&gql).expect("Parse failed");
-            let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+            let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
             let flt = filter_ast(&ast, &types);
             format!("{}", flt)
         }
