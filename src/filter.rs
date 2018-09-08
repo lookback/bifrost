@@ -9,8 +9,7 @@ where
         resolve(&ast, &mut found, *t);
     }
 
-    let mut tree: Vec<_> = found.into_iter().cloned().collect();
-    tree.reverse();
+    let tree: Vec<_> = found.into_iter().cloned().collect();
 
     // resulting filtered ast
     Ast::new(tree)
