@@ -10,6 +10,7 @@ use std::fmt::{Formatter, Result};
 #[derive(Clone)]
 pub struct Rust {}
 
+
 fn translate_typ(typ: &str) -> &str {
     match typ {
         "Int" => "i32",
@@ -24,6 +25,7 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(f, "#![allow(non_snake_case)]\n ")?;
         if self.has_type(|t| t.typ == "Date") {
             writeln!(f, "use chrono::{{Date, Utc}};\n")?;
         }
