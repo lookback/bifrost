@@ -2,12 +2,14 @@ extern crate clap;
 
 mod conv_pass;
 mod conv_rust;
+mod conv_swift;
 mod filter;
 mod parser;
 mod token;
 
 use crate::conv_pass::Pass;
 use crate::conv_rust::Rust;
+use crate::conv_swift::Swift;
 use crate::filter::filter_ast;
 use crate::parser::*;
 use std::fs::File;
@@ -33,7 +35,7 @@ fn main() {
             clap::Arg::with_name("lang")
                 .help("Language to convert to")
                 .required(true)
-                .possible_values(&["pass", "rust"]),
+                .possible_values(&["pass", "rust", "swift"]),
         )
         .arg(
             clap::Arg::with_name("source")
@@ -57,6 +59,11 @@ fn main() {
         }
         "rust" => {
             let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
+            let flt = filter_ast(&ast, &types);
+            format!("{}", flt)
+        }
+        "swift" => {
+            let ast: Ast<Swift> = unsafe { std::mem::transmute(ast) };
             let flt = filter_ast(&ast, &types);
             format!("{}", flt)
         }
