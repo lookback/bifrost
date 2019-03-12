@@ -33,6 +33,8 @@ fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &s
                     resolve(ast, found, n.name());
                 }
             }
+            Tree::Dr(_) => (),
+            Tree::Sc(_) => (),
             Tree::En(_) => (),
             Tree::Un(_) => (),
         },

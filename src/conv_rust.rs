@@ -45,6 +45,8 @@ impl<'a> Display for Ast<'a, Rust> {
 impl<'a> Display for Tree<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
+            Tree::Dr(_) => (),
+            Tree::Sc(_) => (),
             Tree::Ty(t) => write!(f, "{}", t)?,
             Tree::En(e) => write!(f, "{}", e)?,
             Tree::Un(u) => write!(f, "{}", u)?,

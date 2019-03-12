@@ -1,3 +1,7 @@
+use crate::parser::Scalar;
+use crate::parser::TypedTarget;
+use crate::parser::Target;
+use crate::parser::Directive;
 use crate::parser::Enum;
 use crate::parser::EnumValue;
 use crate::parser::Field;
@@ -27,6 +31,8 @@ impl<'a> Display for Ast<'a, Pass> {
 impl<'a> Display for Tree<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
+            Tree::Dr(d) => write!(f, "{}", d)?,
+            Tree::Sc(s) => write!(f, "{}", s)?,
             Tree::Ty(t) => write!(f, "{}", t)?,
             Tree::En(e) => write!(f, "{}", e)?,
             Tree::Un(u) => write!(f, "{}", u)?,
@@ -45,12 +51,54 @@ fn write_doc(f: &mut Formatter, indent: &str, doc: &str) -> Result {
     Ok(())
 }
 
+impl<'a> Display for Directive<'a, Pass> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        if let Some(doc) = self.doc {
+            write_doc(f, "", doc)?;
+        }
+        writeln!(f, "directive @{} (", self.name)?;
+        for field in &self.fields {
+            writeln!(f, "{}", field)?;
+        }
+        writeln!(f, ") on ")?;
+        for (idx, target) in self.targets.iter().enumerate() {
+            if idx > 0 {
+                writeln!(f, " | ")?;
+            }
+            writeln!(f, "{}", target)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for TypedTarget<Pass> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(f, "{}", match self.0 {
+            Target::Object => "OBJECT",
+            Target::FieldDefinition => "FIELD_DEFINITION",
+            Target::InputFieldDefinition => "INPUT_FIELD_DEFINITION",
+            Target::Unknown => "",
+        })
+    }
+}
+
+impl<'a> Display for Scalar<'a, Pass> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(f, "scalar {}", self.name)
+    }
+}
+
 impl<'a> Display for Type<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if let Some(doc) = self.doc {
             write_doc(f, "", doc)?;
         }
-        writeln!(f, "type {} {{", self.name)?;
+        write!(f, "{} ", if self.is_input {
+            "input"
+        } else {
+            "type"
+        })?;
+        writeln!(f, "{} {{", self.name)?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
         }

@@ -7,6 +7,7 @@
 pub trait TokenChar {
     fn is_name(&self) -> bool;
     fn is_white(&self) -> bool;
+    fn is_hash(&self) -> bool;
 }
 
 impl TokenChar for char {
@@ -16,10 +17,14 @@ impl TokenChar for char {
     fn is_white(&self) -> bool {
         self.is_whitespace()
     }
+    fn is_hash(&self) -> bool {
+        *self == '#'
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum SYMBOL {
+    Aruba,
     OpCurl,
     ClCurl,
     Colon,
@@ -89,6 +94,7 @@ impl Chunk {
 
 fn as_symbol(off: &str, index: usize) -> Option<Chunk> {
     match &off[0..1] {
+        "@" => Some((SYMBOL::Aruba, 1)),
         "{" => Some((SYMBOL::OpCurl, 1)),
         "}" => Some((SYMBOL::ClCurl, 1)),
         ":" => Some((SYMBOL::Colon, 1)),
@@ -109,7 +115,17 @@ fn as_symbol(off: &str, index: usize) -> Option<Chunk> {
 }
 
 fn as_white(off: &str, index: usize) -> Option<Chunk> {
-    let len = off.chars().take_while(|c| c.is_white()).count();
+    let mut len = off.chars().take_while(|c| c.is_white()).count();
+    let mut it = off.chars().skip(len);
+    if it.next() == Some('#') {
+        // the rest of the line is a comment, which we treat as whitespace
+        let c_len = it.take_while(|c| *c != '\n').count() + 1;
+        len += c_len;
+        // tokenize whitespace after the comment
+        if let Some(c) = as_white(&off[len..], index + len) {
+            len += c.len;
+        }
+    }
     if len == 0 {
         None
     } else {
@@ -165,6 +181,19 @@ impl<'a> TokenIter<'a> {
         match self.peek() {
             None => false,
             Some(chunk) => chunk.is_symbol(symbol),
+        }
+    }
+    pub fn peek_is_white_with_lf<'b>(&mut self, source: &'b str) -> bool {
+        match self.peek() {
+            None => false,
+            Some(chunk) => {
+                if chunk.token == Token::White {
+                    let text = chunk.apply(source);
+                    text.chars().any(|c| c == '\n')
+                } else {
+                    false
+                }
+            },
         }
     }
 }

@@ -48,6 +48,8 @@ impl<'a, T> Ast<'a, T> {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Tree<'a, T> {
+    Dr(Directive<'a, T>),
+    Sc(Scalar<'a, T>),
     Ty(Type<'a, T>),
     En(Enum<'a, T>),
     Un(Union<'a, T>),
@@ -56,11 +58,51 @@ pub enum Tree<'a, T> {
 impl<'a, T> Tree<'a, T> {
     pub fn name(&self) -> &'a str {
         match self {
+            Tree::Dr(t) => t.name,
+            Tree::Sc(t) => t.name,
             Tree::Ty(t) => t.name,
             Tree::En(e) => e.name,
             Tree::Un(u) => u.name,
         }
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Target {
+    Object,
+    FieldDefinition,
+    InputFieldDefinition,
+    Unknown,
+}
+
+impl<'a> From<&'a str> for Target {
+    fn from(s: &'a str) -> Self {
+        match s {
+            "OBJECT" => Target::Object,
+            "FIELD_DEFINITION" => Target::FieldDefinition,
+            "INPUT_FIELD_DEFINITION" => Target::InputFieldDefinition,
+            _ => Target::Unknown,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct TypedTarget<T>(pub Target, PhantomData<T>);
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Directive<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    pub fields: Vec<Field<'a, T>>,
+    pub targets: Vec<TypedTarget<T>>,
+    _ph: PhantomData<T>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Scalar<'a, T> {
+    pub doc: Option<&'a str>,
+    pub name: &'a str,
+    _ph: PhantomData<T>,
 }
 
 // type Starship {
@@ -70,9 +112,11 @@ impl<'a, T> Tree<'a, T> {
 // }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Type<'a, T> {
+    pub is_input: bool,
     pub doc: Option<&'a str>,
     pub name: &'a str,
     pub fields: Vec<Field<'a, T>>,
+    pub dir_args: Vec<DirArg<'a, T>>,
     _ph: PhantomData<T>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -81,6 +125,7 @@ pub struct Field<'a, T> {
     pub name: &'a str,
     pub expr: TypeExpr<'a, T>,
     pub args: Vec<FieldArg<'a, T>>,
+    pub dir_args: Vec<DirArg<'a, T>>,
     _ph: PhantomData<T>,
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -96,6 +141,13 @@ pub struct TypeExpr<'a, T> {
     pub typ: &'a str,
     pub null: bool,
     pub arr: Arr,
+    _ph: PhantomData<T>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct DirArg<'a, T> {
+    pub name: &'a str,
+    // TODO parse the args
     _ph: PhantomData<T>,
 }
 
@@ -192,6 +244,23 @@ fn expect_name<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<&'a str>
         })
 }
 
+fn expect_word<'a>(source: &'a str, tok: &mut TokenIter, word: &str) -> ParseResult<()> {
+    tok.consume()
+        .ok_or_else(|| unexpected_end("Expected word, but found end of input"))
+        .and_then(|chunk| {
+            if chunk.token == Token::Name {
+                let found = chunk.apply(source);
+                if found == word {
+                    Ok(())
+                } else {
+                    err_syntax_error(&format!("Expected word: {}", word), &chunk, source)
+                }
+            } else {
+                err_syntax_error("Expected name token", &chunk, source)
+            }
+        })
+}
+
 fn expect_symbol(source: &str, tok: &mut TokenIter, symbol: SYMBOL) -> ParseResult<Chunk> {
     tok.consume()
         .ok_or_else(|| unexpected_end("Expected symbol, but found end of input"))
@@ -199,12 +268,12 @@ fn expect_symbol(source: &str, tok: &mut TokenIter, symbol: SYMBOL) -> ParseResu
             let is_expected_symbol = if let Token::Symbol(s) = &chunk.token {
                 Ok(*s == symbol)
             } else {
-                err_syntax_error("Expected symbol", &chunk, source)
+                err_syntax_error(&format!("Expected symbol: {:?}", symbol), &chunk, source)
             }?;
             if is_expected_symbol {
                 Ok(chunk)
             } else {
-                err_syntax_error("Wrong symbol", &chunk, source)
+                err_syntax_error(&format!("Not expected symbol: {:?}", symbol), &chunk, source)
             }
         })
 }
@@ -220,7 +289,10 @@ pub fn parse<T>(source: &str) -> ParseResult<Ast<T>> {
             Some(chunk) => {
                 let tr = match chunk.token {
                     Token::Name => match chunk.apply(source) {
-                        "type" => parse_type(source, &mut tok, doc),
+                        "directive" => parse_directive(source, &mut tok, doc),
+                        "scalar" => parse_scalar(source, &mut tok, doc),
+                        "input" => parse_type(source, &mut tok, doc, true),
+                        "type" => parse_type(source, &mut tok, doc, false),
                         "enum" => parse_enum(source, &mut tok, doc),
                         "union" => parse_union(source, &mut tok, doc),
                         _ => err_syntax_error("Unknown keyword", &chunk, source),
@@ -258,15 +330,76 @@ fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a
     }
 }
 
+fn parse_directive<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Tree<'a, T>> {
+    // keyword is "directive" and tok is positioned after that
+    tok.skip_white();
+    expect_symbol(source, tok, SYMBOL::Aruba)?;
+    let name = expect_name(source, tok)?;
+    expect_symbol(source, tok, SYMBOL::OpParen)?;
+    let mut fields: Vec<Field<T>> = vec![];
+    loop {
+        tok.skip_white();
+        if tok.peek_is_symbol(SYMBOL::ClParen) {
+            tok.consume();
+            break;
+        }
+        let doc = parse_doc(source, tok)?;
+        tok.skip_white();
+        fields.push(parse_field(source, tok, doc)?);
+    }
+    tok.skip_white();
+    expect_word(source, tok, "on")?;
+    tok.skip_white();
+    let mut targets: Vec<TypedTarget<T>> = vec![];
+    loop {
+        let t = expect_name(source, tok)?;
+        targets.push(TypedTarget(t.into(), PhantomData));
+        if tok.peek_is_white_with_lf(source) {
+            break;
+        }
+        tok.skip_white();
+        expect_symbol(source, tok, SYMBOL::Pipe)?;
+        tok.skip_white();
+    }
+    Ok(Tree::Dr(Directive {
+        doc,
+        name,
+        fields,
+        targets,
+        _ph: PhantomData,
+    }))
+}
+
+fn parse_scalar<'a, T>(
+    source: &'a str,
+    tok: &mut TokenIter,
+    doc: Option<&'a str>,
+) -> ParseResult<Tree<'a, T>> {
+    // keyword is "directive" and tok is positioned after that
+    tok.skip_white();
+    let name = expect_name(source, tok)?;
+    Ok(Tree::Sc(Scalar {
+        doc,
+        name,
+        _ph: PhantomData,
+    }))
+}
+
 fn parse_type<'a, T>(
     source: &'a str,
     tok: &mut TokenIter,
     doc: Option<&'a str>,
+    is_input: bool,
 ) -> ParseResult<Tree<'a, T>> {
     // keyword is "type" and tok is positioned after that
     tok.skip_white();
     let name = expect_name(source, tok)?;
     tok.skip_white();
+    let dir_args = parse_dir_args(source, tok)?;
     expect_symbol(source, tok, SYMBOL::OpCurl)?;
     let mut fields: Vec<Field<T>> = vec![];
     loop {
@@ -280,9 +413,11 @@ fn parse_type<'a, T>(
         fields.push(parse_field(source, tok, doc)?);
     }
     Ok(Tree::Ty(Type {
+        is_input,
         doc,
         name,
         fields,
+        dir_args,
         _ph: PhantomData,
     }))
 }
@@ -314,11 +449,13 @@ fn parse_field<'a, T>(
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::Colon)?;
     let expr = parse_type_expr(source, tok)?;
+    let dir_args = parse_dir_args(source, tok)?;
     Ok(Field {
         doc,
         name,
         expr,
         args,
+        dir_args,
         _ph: PhantomData,
     })
 }
@@ -380,6 +517,38 @@ fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<F
     })
 }
 
+fn parse_dir_args<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Vec<DirArg<'a, T>>> {
+    let mut args = vec![];
+    loop {
+        tok.skip_white();
+        if tok.peek_is_symbol(SYMBOL::Aruba) {
+            args.push(parse_dir_arg(source, tok)?);
+        } else {
+            break;
+        }
+    }
+    Ok(args)
+}
+
+// expect to be positioned on '@' in @can(action: "participate.view")
+fn parse_dir_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<DirArg<'a, T>> {
+    tok.consume();
+    let name = expect_name(source, tok)?;
+    expect_symbol(source, tok, SYMBOL::OpParen)?;
+    loop {
+        // TODO, parse args
+        if tok.peek_is_symbol(SYMBOL::ClParen) {
+            tok.consume();
+            break;
+        }
+        tok.consume();
+    }
+    Ok(DirArg {
+        name,
+        _ph: PhantomData
+    })
+}
+
 fn parse_enum<'a, T>(
     source: &'a str,
     tok: &mut TokenIter,
@@ -400,6 +569,10 @@ fn parse_enum<'a, T>(
         let doc = parse_doc(source, tok)?;
         tok.skip_white();
         let value = expect_name(source, tok)?;
+        tok.skip_white();
+        if tok.peek_is_symbol(SYMBOL::Comma) {
+            tok.consume();
+        }
         values.push(EnumValue {
             doc,
             value,
@@ -587,5 +760,38 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn parse_type_with_field_comment() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+                # access control kicks in on User level
+                user(_id: ID!): User
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type Query {\n  user(_id: ID!): User\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_enum_with_comma() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            enum Foo {
+                Value1,
+                Value2,
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "enum Foo {\n  Value1,\n  Value2,\n}\n"
+        );
+        Ok(())
+    }
+
 
 }
