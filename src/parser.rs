@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
+use crate::token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
 
 //include!("display.rs");
 
@@ -444,7 +444,7 @@ fn parse_union<'a, T>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use conv_pass::Pass;
+    use crate::conv_pass::Pass;
 
     #[test]
     fn parse_type_no_doc() -> ParseResult<()> {

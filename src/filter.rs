@@ -1,4 +1,4 @@
-use parser::{Ast, Tree};
+use crate::parser::{Ast, Tree};
 
 pub fn filter_ast<'a, T>(ast: &'a Ast<'a, T>, types: &Vec<&str>) -> Ast<'a, T>
 where
@@ -20,7 +20,7 @@ fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &s
         None => (),
         Some(tree) => match tree {
             Tree::Ty(t) => {
-                let mut new: Vec<_> = t
+                let new: Vec<_> = t
                     .fields
                     .iter()
                     .filter_map(|f| ast.get_tree(f.expr.typ))

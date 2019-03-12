@@ -1,9 +1,9 @@
-use parser::Enum;
-use parser::Field;
-use parser::Type;
-use parser::TypeExpr;
-use parser::Union;
-use parser::{Ast, Tree};
+use crate::parser::Enum;
+use crate::parser::Field;
+use crate::parser::Type;
+use crate::parser::TypeExpr;
+use crate::parser::Union;
+use crate::parser::{Ast, Tree};
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
 

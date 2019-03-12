@@ -1,11 +1,11 @@
-use parser::Enum;
-use parser::EnumValue;
-use parser::Field;
-use parser::FieldArg;
-use parser::Type;
-use parser::TypeExpr;
-use parser::Union;
-use parser::{Ast, Tree};
+use crate::parser::Enum;
+use crate::parser::EnumValue;
+use crate::parser::Field;
+use crate::parser::FieldArg;
+use crate::parser::Type;
+use crate::parser::TypeExpr;
+use crate::parser::Union;
+use crate::parser::{Ast, Tree};
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
 

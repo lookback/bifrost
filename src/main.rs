@@ -6,10 +6,10 @@ mod filter;
 mod parser;
 mod token;
 
-use conv_pass::Pass;
-use conv_rust::Rust;
-use filter::filter_ast;
-use parser::*;
+use crate::conv_pass::Pass;
+use crate::conv_rust::Rust;
+use crate::filter::filter_ast;
+use crate::parser::*;
 use std::fs::File;
 use std::io::prelude::Read;
 
