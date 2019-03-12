@@ -60,20 +60,20 @@ impl<'a> Display for Directive<'a, Pass> {
         for field in &self.fields {
             writeln!(f, "{}", field)?;
         }
-        writeln!(f, ") on ")?;
+        write!(f, ") on ")?;
         for (idx, target) in self.targets.iter().enumerate() {
             if idx > 0 {
-                writeln!(f, " | ")?;
+                write!(f, " | ")?;
             }
-            writeln!(f, "{}", target)?;
+            write!(f, "{}", target)?;
         }
-        Ok(())
+        writeln!(f, "")
     }
 }
 
 impl Display for TypedTarget<Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        writeln!(f, "{}", match self.0 {
+        write!(f, "{}", match self.0 {
             Target::Object => "OBJECT",
             Target::FieldDefinition => "FIELD_DEFINITION",
             Target::InputFieldDefinition => "INPUT_FIELD_DEFINITION",
@@ -84,6 +84,9 @@ impl Display for TypedTarget<Pass> {
 
 impl<'a> Display for Scalar<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        if let Some(doc) = self.doc {
+            write_doc(f, "", doc)?;
+        }
         writeln!(f, "scalar {}", self.name)
     }
 }
