@@ -14,6 +14,8 @@ use crate::filter::filter_ast;
 use crate::parser::*;
 use std::fs::File;
 use std::io::prelude::Read;
+use std::fmt::Display;
+use std::fmt::{Formatter, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Output {
@@ -22,6 +24,8 @@ pub struct Output {
 }
 
 fn main() {
+    let cmd = std::env::args().collect::<Vec<String>>().join(" ");
+
     let m = clap::App::new("bifrost")
         .arg(
             clap::Arg::with_name("types")
@@ -52,25 +56,48 @@ fn main() {
     let ast = parse::<Pass>(&gql).expect("Parse failed");
     let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
 
-    let output = match lang {
+    let out = ToOut {
+        cmd: &cmd,
+        lang,
+        ast,
+        types
+    };
+
+    print!("{}", out);
+}
+
+struct ToOut<'a> {
+    cmd: &'a str,
+    lang: &'a str,
+    ast: Ast<'a, Pass>,
+    types: Vec<&'a str>,
+}
+
+impl<'a> Display for ToOut<'a> {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let ast = self.ast.clone();
+        match self.lang {
         "pass" => {
-            let flt = filter_ast(&ast, &types);
-            format!("{}", flt)
+            let flt = filter_ast(&ast, &self.types);
+            writeln!(f, "# Generated using:")?;
+            writeln!(f, "# {}\n", &self.cmd)?;
+            writeln!(f, "{}", flt)
         }
         "rust" => {
             let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
-            let flt = filter_ast(&ast, &types);
-            format!("{}", flt)
+            let flt = filter_ast(&ast, &self.types);
+            writeln!(f, "{}", flt)
         }
         "swift" => {
             let ast: Ast<Swift> = unsafe { std::mem::transmute(ast) };
-            let flt = filter_ast(&ast, &types);
-            format!("{}", flt)
+            let flt = filter_ast(&ast, &self.types);
+            writeln!(f, "// Generated using:")?;
+            writeln!(f, "// {}\n", &self.cmd)?;
+            writeln!(f, "{}", flt)
         }
-        _ => panic!("Unknown output"),
-    };
-
-    print!("{}", output);
+        _ => panic!("Unknown output")
+        }
+    }
 }
 
 fn read_file(source: &str) -> std::io::Result<String> {
