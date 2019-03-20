@@ -95,14 +95,12 @@ impl<'a> Display for TypeExpr<'a, Swift> {
             write!(f, "[")?;
         }
         write!(f, "{}", translate_typ(self.typ))?;
-        if self.null {
+        if !self.arr.is_arr() {
             write!(f, "?")?;
         }
         if self.arr.is_arr() {
             write!(f, "]")?;
-            if self.arr.is_null() {
-                write!(f, "?")?;
-            }
+            write!(f, "?")?;
         }
         Ok(())
     }
