@@ -36,6 +36,11 @@ fn main() {
                 .short("t"),
         )
         .arg(
+            clap::Arg::with_name("swift-all-optional")
+                .help("If all values for swift should be optionals")
+                .long("swift-all-optional"),
+        )
+        .arg(
             clap::Arg::with_name("lang")
                 .help("Language to convert to")
                 .required(true)
@@ -55,6 +60,11 @@ fn main() {
 
     let ast = parse::<Pass>(&gql).expect("Parse failed");
     let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+
+    let swift_all_optional = m.occurrences_of("swift-all-optional") > 0;
+    if swift_all_optional {
+        std::env::set_var("SWIFT_ALL_OPTIONAL", "true");
+    }
 
     let out = ToOut {
         cmd: &cmd,
