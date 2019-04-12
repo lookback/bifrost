@@ -96,6 +96,8 @@ impl<'a> Display for ToOut<'a> {
         "rust" => {
             let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
             let flt = filter_ast(&ast, &self.types);
+            writeln!(f, "// Generated using:")?;
+            writeln!(f, "// {}\n", &self.cmd)?;
             writeln!(f, "{}", flt)
         }
         "swift" => {

@@ -25,7 +25,10 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        writeln!(f, "#![allow(non_snake_case)]\n ")?;
+        writeln!(f, "#![allow(non_snake_case)]")?;
+        writeln!(f, "#![allow(non_camel_case_types)]\n")?;
+        writeln!(f, "use serde::{{Deserialize, Serialize}};\n")?;
+
         if self.has_type(|t| t.typ == "Date") {
             writeln!(f, "use chrono::{{Date, Utc}};\n")?;
         }
@@ -73,7 +76,7 @@ impl<'a> Display for Tree<'a, Rust> {
 impl<'a> Display for Type<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, Copy, Serialize, Deserialize)]")?;
+        writeln!(f, "#[derive(Debug, Clone, Serialize, Deserialize)]")?;
         writeln!(f, "pub struct {} {{", self.name)?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
@@ -85,7 +88,7 @@ impl<'a> Display for Type<'a, Rust> {
 
 impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write_doc(f, "", self.doc)?;
+        write_doc(f, "  ", self.doc)?;
         let expr = &self.expr;
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
@@ -129,7 +132,7 @@ impl<'a> Display for Enum<'a, Rust> {
         writeln!(f, "#[derive(Debug, Clone, Copy, Serialize, Deserialize)]")?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
-            write_doc(f, "", v.doc)?;
+            write_doc(f, "  ", v.doc)?;
             writeln!(f, "  {},", v.value)?;
         }
         writeln!(f, "}}")?;
