@@ -42,6 +42,21 @@ impl<'a> Display for Ast<'a, Rust> {
     }
 }
 
+fn write_doc(f: &mut Formatter, indent: &str, doc: Option<&str>) -> Result {
+    if let Some(doc) = doc {
+        let count = doc.split('\n').count();
+        for (idx, line) in doc.split('\n').enumerate() {
+            let line = line.trim();
+            // keep interior empty lines, but not first or last
+            if line.is_empty() && (idx == 0 || idx == count - 1) {
+                continue;
+            }
+            writeln!(f, "{}/// {}", indent, line)?;
+        }
+    }
+    Ok(())
+}
+
 impl<'a> Display for Tree<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
@@ -57,6 +72,7 @@ impl<'a> Display for Tree<'a, Rust> {
 
 impl<'a> Display for Type<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        write_doc(f, "", self.doc)?;
         writeln!(f, "#[derive(Debug, Clone, Copy, Serialize, Deserialize)]")?;
         writeln!(f, "pub struct {} {{", self.name)?;
         for field in &self.fields {
@@ -69,6 +85,7 @@ impl<'a> Display for Type<'a, Rust> {
 
 impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        write_doc(f, "", self.doc)?;
         let expr = &self.expr;
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
@@ -108,9 +125,11 @@ impl<'a> Display for TypeExpr<'a, Rust> {
 
 impl<'a> Display for Enum<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        write_doc(f, "", self.doc)?;
         writeln!(f, "#[derive(Debug, Clone, Copy, Serialize, Deserialize)]")?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
+            write_doc(f, "", v.doc)?;
             writeln!(f, "  {},", v.value)?;
         }
         writeln!(f, "}}")?;
