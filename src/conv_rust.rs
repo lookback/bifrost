@@ -76,7 +76,7 @@ impl<'a> Display for Tree<'a, Rust> {
 impl<'a> Display for Type<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, Serialize, Deserialize)]")?;
+        writeln!(f, "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]")?;
         writeln!(f, "pub struct {} {{", self.name)?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
@@ -129,7 +129,7 @@ impl<'a> Display for TypeExpr<'a, Rust> {
 impl<'a> Display for Enum<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, Copy, Serialize, Deserialize)]")?;
+        writeln!(f, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]")?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
             write_doc(f, "  ", v.doc)?;
