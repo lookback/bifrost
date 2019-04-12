@@ -88,12 +88,12 @@ impl<'a> Display for Type<'a, Rust> {
 
 impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write_doc(f, "  ", self.doc)?;
+        write_doc(f, "    ", self.doc)?;
         let expr = &self.expr;
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
-            write!(f, "  #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
+            write!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
         }
-        write!(f, "  pub {}: {},", self.name, self.expr)?;
+        write!(f, "    pub {}: {},", self.name, self.expr)?;
         if !self.args.is_empty() {
             panic!("Can't generate field with args");
         }
@@ -132,8 +132,8 @@ impl<'a> Display for Enum<'a, Rust> {
         writeln!(f, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]")?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
-            write_doc(f, "  ", v.doc)?;
-            writeln!(f, "  {},", v.value)?;
+            write_doc(f, "    ", v.doc)?;
+            writeln!(f, "    {},", v.value)?;
         }
         writeln!(f, "}}")?;
         Ok(())
