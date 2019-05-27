@@ -10,6 +10,11 @@ $ rustup update
 $ cargo build
 ```
 
+## Get CLI help
+
+```
+$ cargo run -- --help
+```
 
 ## Rust bindings
 
