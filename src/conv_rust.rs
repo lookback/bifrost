@@ -88,15 +88,21 @@ impl<'a> Display for Type<'a, Rust> {
 
 impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        let has_args = !self.args.is_empty();
+        let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
+            .map(|s| s == "true").unwrap_or(false);
+        if has_args {
+            if ignore_fields_with_args {
+                return Ok(());
+            }
+            panic!("Can't generate field with args");
+        }
         write_doc(f, "    ", self.doc)?;
         let expr = &self.expr;
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             write!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
         }
         write!(f, "    pub {}: {},", self.name, self.expr)?;
-        if !self.args.is_empty() {
-            panic!("Can't generate field with args");
-        }
         Ok(())
     }
 }

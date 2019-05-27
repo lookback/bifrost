@@ -41,6 +41,11 @@ fn main() {
                 .long("swift-all-optional"),
         )
         .arg(
+            clap::Arg::with_name("ignore-fields-with-args")
+                .help("Don't break on fields with args, just ignore them")
+                .long("ignore-fields-with-args"),
+        )
+        .arg(
             clap::Arg::with_name("lang")
                 .help("Language to convert to")
                 .required(true)
@@ -64,6 +69,11 @@ fn main() {
     let swift_all_optional = m.occurrences_of("swift-all-optional") > 0;
     if swift_all_optional {
         std::env::set_var("SWIFT_ALL_OPTIONAL", "true");
+    }
+
+    let ignore_fields_with_args = m.occurrences_of("ignore-fields-with-args") > 0;
+    if ignore_fields_with_args {
+        std::env::set_var("IGNORE_FIELDS_WITH_ARGS", "true");
     }
 
     let out = ToOut {
