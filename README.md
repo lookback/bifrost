@@ -3,15 +3,22 @@ bifrost
 
 GraphQL -> structs/JSON bindings
 
+## Building
+
+```
+$ rustup update
+$ cargo build
+```
+
 
 ## Rust bindings
 
 ```
-$ bifrost rust ./schema.gql -t User
+$ ./target/debug/bifrost rust ./schema.gql -t User
 ```
 
 ## Pass-through (for debugging)
 
 ```
-$ bifrost pass ./schema.gql -t User
+$ ./target/debug/bifrost pass ./schema.gql -t User
 ```
