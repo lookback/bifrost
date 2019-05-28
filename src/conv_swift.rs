@@ -80,8 +80,8 @@ impl<'a> Display for Type<'a, Swift> {
 
 impl<'a> Display for Field<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write_doc(f, "  ", self.doc)?;
-        write!(f, "  let {}: {}", self.name, self.expr)?;
+        write_doc(f, "    ", self.doc)?;
+        write!(f, "    let {}: {}", self.name, self.expr)?;
         Ok(())
     }
 }
@@ -112,8 +112,8 @@ impl<'a> Display for Enum<'a, Swift> {
         write_doc(f, "", self.doc)?;
         writeln!(f, "enum {}: String, Codable, CaseIterable {{", self.name)?;
         for v in &self.values {
-            write_doc(f, "  ", v.doc)?;
-            writeln!(f, "  case {}", v.value)?;
+            write_doc(f, "    ", v.doc)?;
+            writeln!(f, "    case {}", v.value)?;
         }
         writeln!(f, "}}")?;
         Ok(())
