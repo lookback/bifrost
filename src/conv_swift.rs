@@ -80,15 +80,6 @@ impl<'a> Display for Type<'a, Swift> {
 
 impl<'a> Display for Field<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        let has_args = !self.args.is_empty();
-        let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
-            .map(|s| s == "true").unwrap_or(false);
-        if has_args {
-            if ignore_fields_with_args {
-                return Ok(());
-            }
-            panic!("Can't generate field with args");
-        }
         write_doc(f, "  ", self.doc)?;
         write!(f, "  let {}: {}", self.name, self.expr)?;
         Ok(())
