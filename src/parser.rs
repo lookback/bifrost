@@ -646,6 +646,7 @@ fn parse_union<'a, T>(
         if !tok.peek_is_symbol(SYMBOL::Pipe) {
             break;
         }
+        tok.consume();
     }
     Ok(Tree::Un(Union {
         doc,
@@ -850,6 +851,17 @@ mod tests {
              \n  usersByEmail(email: [String!]): [User]\
              \n}\n"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_union() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            union Feral = Mink | Weasel
+            "#,
+        )?;
+        assert_eq!(r.to_string(), "union Feral = Mink | Weasel\n");
         Ok(())
     }
 

@@ -140,7 +140,15 @@ impl<'a> Display for Enum<'a, Swift> {
 }
 
 impl<'a> Display for Union<'a, Swift> {
-    fn fmt(&self, _: &mut Formatter) -> Result {
-        panic!("Union?!");
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(f, "enum {} {{", self.name)?;
+        for name in &self.names {
+            let mut lcased = name.to_string();
+            if let Some(r) = lcased.get_mut(0..1) {
+                r.make_ascii_lowercase();
+            }
+            writeln!(f, "    case {}({})", lcased, name)?;
+        }
+        writeln!(f, "}}")
     }
 }

@@ -204,7 +204,8 @@ impl<'a> Display for EnumValue<'a, Pass> {
 }
 
 impl<'a> Display for Union<'a, Pass> {
-    fn fmt(&self, _: &mut Formatter) -> Result {
-        panic!("Union?!");
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        let types = self.names.join(" | ");
+        writeln!(f, "union {} = {}", self.name, types)
     }
 }

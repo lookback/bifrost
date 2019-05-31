@@ -194,7 +194,15 @@ impl<'a> Display for Enum<'a, Rust> {
 }
 
 impl<'a> Display for Union<'a, Rust> {
-    fn fmt(&self, _: &mut Formatter) -> Result {
-        panic!("Union?!");
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(
+            f,
+            "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"
+        )?;
+        writeln!(f, "pub enum {} {{", self.name)?;
+        for name in &self.names {
+            writeln!(f, "    {}({}),", name, name)?;
+        }
+        writeln!(f, "}}")
     }
 }
