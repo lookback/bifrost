@@ -30,7 +30,7 @@ impl<'a> Display for Ast<'a, Swift> {
         }
         for (idx, t) in self.tree.iter().enumerate() {
             if idx > 0 {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
             write!(f, "{}", t)?;
         }
@@ -89,17 +89,18 @@ impl<'a> Display for Field<'a, Swift> {
 impl<'a> Display for TypeExpr<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let swift_all_optional = std::env::var("SWIFT_ALL_OPTIONAL")
-            .map(|s| s == "true").unwrap_or(false);
+            .map(|s| s == "true")
+            .unwrap_or(false);
         if self.arr.is_arr() {
             write!(f, "[")?;
         }
         write!(f, "{}", translate_typ(self.typ))?;
-        if swift_all_optional || !swift_all_optional && self.null {
+        if self.null || swift_all_optional {
             write!(f, "?")?;
         }
         if self.arr.is_arr() {
             write!(f, "]")?;
-            if swift_all_optional || !swift_all_optional && self.arr.is_null() {
+            if self.arr.is_null() || swift_all_optional {
                 write!(f, "?")?;
             }
         }

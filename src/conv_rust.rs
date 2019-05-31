@@ -37,7 +37,7 @@ impl<'a> Display for Ast<'a, Rust> {
         }
         for (idx, t) in self.tree.iter().enumerate() {
             if idx > 0 {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
             write!(f, "{}", t)?;
         }
@@ -76,7 +76,10 @@ impl<'a> Display for Tree<'a, Rust> {
 impl<'a> Display for Type<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]")?;
+        writeln!(
+            f,
+            "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"
+        )?;
         writeln!(f, "pub struct {} {{", self.name)?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
@@ -90,7 +93,8 @@ impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let has_args = !self.args.is_empty();
         let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
-            .map(|s| s == "true").unwrap_or(false);
+            .map(|s| s == "true")
+            .unwrap_or(false);
         if has_args {
             if ignore_fields_with_args {
                 return Ok(());
@@ -100,7 +104,7 @@ impl<'a> Display for Field<'a, Rust> {
         write_doc(f, "    ", self.doc)?;
         let expr = &self.expr;
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
-            write!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
+            writeln!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]")?;
         }
         write!(f, "    pub {}: {},", self.name, self.expr)?;
         Ok(())
@@ -135,7 +139,10 @@ impl<'a> Display for TypeExpr<'a, Rust> {
 impl<'a> Display for Enum<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]")?;
+        writeln!(
+            f,
+            "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]"
+        )?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
             write_doc(f, "    ", v.doc)?;

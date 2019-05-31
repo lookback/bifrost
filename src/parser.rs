@@ -1,6 +1,6 @@
-use std::marker::PhantomData;
-use crate::token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
 
+use crate::token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
+use std::marker::PhantomData;
 //include!("display.rs");
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,22 +22,20 @@ impl<'a, T> Ast<'a, T> {
         P: FnMut(&TypeExpr<'a, T>) -> bool,
     {
         for tr in &self.tree {
-            match tr {
-                Tree::Ty(t) => {
-                    for f in &t.fields {
-                        if pred(&f.expr) {
+            if let Tree::Ty(t) = tr {
+                for f in &t.fields {
+                    if pred(&f.expr) {
+                        return true;
+                    }
+                    for a in &f.args {
+                        if pred(&a.expr) {
                             return true;
-                        }
-                        for a in &f.args {
-                            if pred(&a.expr) {
-                                return true;
-                            }
                         }
                     }
                 }
-                _ => (),
             }
         }
+
         false
     }
 
@@ -273,7 +271,11 @@ fn expect_symbol(source: &str, tok: &mut TokenIter, symbol: SYMBOL) -> ParseResu
             if is_expected_symbol {
                 Ok(chunk)
             } else {
-                err_syntax_error(&format!("Not expected symbol: {:?}", symbol), &chunk, source)
+                err_syntax_error(
+                    &format!("Not expected symbol: {:?}", symbol),
+                    &chunk,
+                    source,
+                )
             }
         })
 }
@@ -545,7 +547,7 @@ fn parse_dir_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Dir
     }
     Ok(DirArg {
         name,
-        _ph: PhantomData
+        _ph: PhantomData,
     })
 }
 
@@ -770,10 +772,7 @@ mod tests {
                 user(_id: ID!): User
             }"#,
         )?;
-        assert_eq!(
-            r.to_string(),
-            "type Query {\n  user(_id: ID!): User\n}\n"
-        );
+        assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
         Ok(())
     }
 
@@ -786,10 +785,7 @@ mod tests {
                 Value2,
             }"#,
         )?;
-        assert_eq!(
-            r.to_string(),
-            "enum Foo {\n  Value1,\n  Value2,\n}\n"
-        );
+        assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
         Ok(())
     }
 

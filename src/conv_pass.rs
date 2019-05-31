@@ -1,14 +1,15 @@
-use crate::parser::Scalar;
-use crate::parser::TypedTarget;
-use crate::parser::Target;
+
 use crate::parser::Directive;
 use crate::parser::Enum;
 use crate::parser::EnumValue;
 use crate::parser::Field;
 use crate::parser::FieldArg;
+use crate::parser::Scalar;
+use crate::parser::Target;
 use crate::parser::Type;
 use crate::parser::TypeExpr;
 use crate::parser::Union;
+use crate::parser::TypedTarget;
 use crate::parser::{Ast, Tree};
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
@@ -20,7 +21,7 @@ impl<'a> Display for Ast<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         for (idx, t) in self.tree.iter().enumerate() {
             if idx > 0 {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
             write!(f, "{}", t)?;
         }
@@ -42,7 +43,7 @@ impl<'a> Display for Tree<'a, Pass> {
 }
 
 fn write_doc(f: &mut Formatter, indent: &str, doc: &str) -> Result {
-    let need_triple = doc.chars().find(|c| *c == '"' || *c == '\n').is_some();
+    let need_triple = doc.chars().any(|c| c == '"' || c == '\n');
     if need_triple {
         writeln!(f, "{}\"\"\"{}\"\"\"", indent, doc)?;
     } else {
@@ -67,18 +68,22 @@ impl<'a> Display for Directive<'a, Pass> {
             }
             write!(f, "{}", target)?;
         }
-        writeln!(f, "")
+        writeln!(f)
     }
 }
 
 impl Display for TypedTarget<Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}", match self.0 {
-            Target::Object => "OBJECT",
-            Target::FieldDefinition => "FIELD_DEFINITION",
-            Target::InputFieldDefinition => "INPUT_FIELD_DEFINITION",
-            Target::Unknown => "",
-        })
+        write!(
+            f,
+            "{}",
+            match self.0 {
+                Target::Object => "OBJECT",
+                Target::FieldDefinition => "FIELD_DEFINITION",
+                Target::InputFieldDefinition => "INPUT_FIELD_DEFINITION",
+                Target::Unknown => "",
+            }
+        )
     }
 }
 
@@ -96,11 +101,7 @@ impl<'a> Display for Type<'a, Pass> {
         if let Some(doc) = self.doc {
             write_doc(f, "", doc)?;
         }
-        write!(f, "{} ", if self.is_input {
-            "input"
-        } else {
-            "type"
-        })?;
+        write!(f, "{} ", if self.is_input { "input" } else { "type" })?;
         writeln!(f, "{} {{", self.name)?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
