@@ -76,13 +76,15 @@ impl<'a> Display for Type<'a, Swift> {
                     write!(f, ", {}", interface)?;
                 }
                 writeln!(f, " {{")?;
+                let use_var = !self.interfaces.is_empty();
                 for field in &self.fields {
-                    writeln!(f, "{}", field)?;
+                    write_field(f, field, use_var)?;
                 }
             }
             TypeKind::Interface => {
                 writeln!(f, "protocol {} {{", self.name)?;
                 for field in &self.fields {
+                    write_doc(f, "    ", self.doc)?;
                     writeln!(f, "    var {}: {} {{ get set }}", field.name, field.expr)?;
                 }
             }
@@ -92,12 +94,14 @@ impl<'a> Display for Type<'a, Swift> {
     }
 }
 
-impl<'a> Display for Field<'a, Swift> {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write_doc(f, "    ", self.doc)?;
-        write!(f, "    var {}: {}", self.name, self.expr)?;
-        Ok(())
+fn write_field<'a>(f: &mut Formatter, field: &Field<'a, Swift>, use_var: bool) -> Result {
+    write_doc(f, "    ", field.doc)?;
+    if use_var {
+        writeln!(f, "    var {}: {}", field.name, field.expr)?;
+    } else {
+        writeln!(f, "    let {}: {}", field.name, field.expr)?;
     }
+    Ok(())
 }
 
 impl<'a> Display for TypeExpr<'a, Swift> {
