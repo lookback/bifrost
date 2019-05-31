@@ -2,6 +2,7 @@ use crate::parser::Enum;
 use crate::parser::Field;
 use crate::parser::Type;
 use crate::parser::TypeExpr;
+use crate::parser::TypeKind;
 use crate::parser::Union;
 use crate::parser::{Ast, Tree};
 use std::fmt::Display;
@@ -9,7 +10,6 @@ use std::fmt::{Formatter, Result};
 
 #[derive(Clone)]
 pub struct Swift {}
-
 
 fn translate_typ(typ: &str) -> &str {
     match typ {
@@ -69,9 +69,23 @@ impl<'a> Display for Tree<'a, Swift> {
 impl<'a> Display for Type<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "struct {}: Codable {{", self.name)?;
-        for field in &self.fields {
-            writeln!(f, "{}", field)?;
+        match self.kind {
+            TypeKind::Type | TypeKind::Input => {
+                write!(f, "struct {}: Codable", self.name)?;
+                for interface in &self.interfaces {
+                    write!(f, ", {}", interface)?;
+                }
+                writeln!(f, " {{")?;
+                for field in &self.fields {
+                    writeln!(f, "{}", field)?;
+                }
+            }
+            TypeKind::Interface => {
+                writeln!(f, "protocol {} {{", self.name)?;
+                for field in &self.fields {
+                    writeln!(f, "    var {}: {} {{ get set }}", field.name, field.expr)?;
+                }
+            }
         }
         writeln!(f, "}}")?;
         Ok(())
@@ -81,7 +95,7 @@ impl<'a> Display for Type<'a, Swift> {
 impl<'a> Display for Field<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "    ", self.doc)?;
-        write!(f, "    let {}: {}", self.name, self.expr)?;
+        write!(f, "    var {}: {}", self.name, self.expr)?;
         Ok(())
     }
 }

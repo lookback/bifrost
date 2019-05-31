@@ -1,16 +1,18 @@
-
+use crate::parser::Ast;
 use crate::parser::Directive;
 use crate::parser::Enum;
 use crate::parser::EnumValue;
 use crate::parser::Field;
 use crate::parser::FieldArg;
 use crate::parser::Scalar;
+
 use crate::parser::Target;
+use crate::parser::Tree;
 use crate::parser::Type;
 use crate::parser::TypeExpr;
-use crate::parser::Union;
+use crate::parser::TypeKind;
 use crate::parser::TypedTarget;
-use crate::parser::{Ast, Tree};
+use crate::parser::Union;
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
 
@@ -101,8 +103,24 @@ impl<'a> Display for Type<'a, Pass> {
         if let Some(doc) = self.doc {
             write_doc(f, "", doc)?;
         }
-        write!(f, "{} ", if self.is_input { "input" } else { "type" })?;
-        writeln!(f, "{} {{", self.name)?;
+        write!(
+            f,
+            "{} ",
+            match self.kind {
+                TypeKind::Type => "type",
+                TypeKind::Input => "input",
+                TypeKind::Interface => "interface",
+            }
+        )?;
+        write!(f, "{}", self.name)?;
+        if self.kind == TypeKind::Type {
+            // " implements <interface1> & <interface2>
+            if !self.interfaces.is_empty() {
+                let istr = self.interfaces.join(" & ");
+                write!(f, " implements {}", istr)?;
+            }
+        }
+        writeln!(f, " {{")?;
         for field in &self.fields {
             writeln!(f, "{}", field)?;
         }

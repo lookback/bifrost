@@ -38,6 +38,7 @@ pub enum SYMBOL {
     ClSquar,
     DQuote,
     TDQuote,
+    Ampers,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -106,12 +107,14 @@ fn as_symbol(off: &str, index: usize) -> Option<Chunk> {
         ")" => Some((SYMBOL::ClParen, 1)),
         "[" => Some((SYMBOL::OpSquar, 1)),
         "]" => Some((SYMBOL::ClSquar, 1)),
+        "&" => Some((SYMBOL::Ampers, 1)),
         "\"" => match &off[0..3] {
             "\"\"\"" => Some((SYMBOL::TDQuote, 3)),
             _ => Some((SYMBOL::DQuote, 1)),
         },
         _ => None,
-    }.map(|(symbol, len)| Chunk::new_symbol(symbol, index, len))
+    }
+    .map(|(symbol, len)| Chunk::new_symbol(symbol, index, len))
 }
 
 fn as_white(off: &str, index: usize) -> Option<Chunk> {
@@ -177,6 +180,15 @@ impl<'a> TokenIter<'a> {
             self.next()
         }
     }
+    pub fn peek_is_name<'b>(&mut self, source: &'b str, name: &str) -> bool {
+        match self.peek() {
+            None => false,
+            Some(chunk) => {
+                let text = chunk.apply(source);
+                name == text
+            }
+        }
+    }
     pub fn peek_is_symbol(&mut self, symbol: SYMBOL) -> bool {
         match self.peek() {
             None => false,
@@ -193,7 +205,7 @@ impl<'a> TokenIter<'a> {
                 } else {
                     false
                 }
-            },
+            }
         }
     }
 }
@@ -253,7 +265,8 @@ mod tests {
              \n  name: String!\
              \n  length(unit: LengthUnit = METER): Float\
              \n}\n",
-        ).collect();
+        )
+        .collect();
         assert_eq!(x.len(), 36);
     }
 }
