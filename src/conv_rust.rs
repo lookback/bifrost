@@ -199,6 +199,10 @@ impl<'a> Display for Union<'a, Rust> {
             f,
             "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"
         )?;
+        writeln!(
+            f,
+            "#[serde(tag = \"tag\", content = \"val\")]"
+        )?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for name in &self.names {
             writeln!(f, "    {}({}),", name, name)?;

@@ -69,6 +69,13 @@ impl<'a, T> Tree<'a, T> {
         }
         None
     }
+
+    pub fn as_union(&self) -> Option<&Union<'a, T>> {
+        if let Tree::Un(t) = self {
+            return Some(t);
+        }
+        None
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]

@@ -34,6 +34,13 @@ impl<'a> Display for Ast<'a, Swift> {
             }
             write!(f, "{}", t)?;
         }
+        let has_union = self.tree.iter().any(|t| t.as_union().is_some());
+        if has_union {
+            writeln!(f, "\nprivate enum UnionAssociated: CodingKey {{")?;
+            writeln!(f, "    case tag")?;
+            writeln!(f, "    case val")?;
+            writeln!(f, "}}")?;
+        }
         Ok(())
     }
 }
@@ -142,13 +149,70 @@ impl<'a> Display for Enum<'a, Swift> {
 impl<'a> Display for Union<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         writeln!(f, "enum {} {{", self.name)?;
+        let mut lcaseds = vec![];
         for name in &self.names {
             let mut lcased = name.to_string();
             if let Some(r) = lcased.get_mut(0..1) {
                 r.make_ascii_lowercase();
             }
             writeln!(f, "    case {}({})", lcased, name)?;
+            lcaseds.push((name, lcased));
         }
-        writeln!(f, "}}")
+        writeln!(f, "}}")?;
+        // bullshit to make a union Codable
+        writeln!(f, "\nextension {}: Codable {{", self.name)?;
+        writeln!(f, "    init(from decoder: Decoder) throws {{")?;
+        writeln!(
+            f,
+            "        let c = try decoder.container(keyedBy: UnionAssociated.self)"
+        )?;
+        writeln!(
+            f,
+            "        let key = try c.decode(String.self, forKey: .tag)"
+        )?;
+        writeln!(f, "        switch key {{")?;
+        for lcased in &lcaseds {
+            writeln!(f, "        case \"{}\":", lcased.1)?;
+            writeln!(
+                f,
+                "            self = .{}(try c.decode({}.self, forKey: .val))",
+                lcased.1, lcased.0
+            )?;
+        }
+        writeln!(f, "        default: throw \"Failed to decode\"")?;
+        writeln!(f, "        }}")?;
+        writeln!(f, "    }}")?;
+        writeln!(f, "    func encode(to encoder: Encoder) throws {{")?;
+        writeln!(
+            f,
+            "        var c = encoder.container(keyedBy: UnionAssociated.self)"
+        )?;
+        writeln!(f, "        switch self {{")?;
+        for lcased in &lcaseds {
+            writeln!(f, "            case .{}(let v):", lcased.1)?;
+            writeln!(
+                f,
+                "                try c.encode(\"{}\", forKey: .tag)",
+                lcased.1
+            )?;
+            writeln!(f, "                try c.encode(v, forKey: .val)")?;
+        }
+        writeln!(f, "        }}")?;
+        writeln!(f, "    }}")?;
+        writeln!(f, "}}")?;
+        // extension Event: Codable {
+        //     init(from decoder: Decoder) throws {
+        //     }
+        //     func encode(to encoder: Encoder) throws {
+        //         var container = encoder.container(keyedBy: UnionAssociated.self)
+        //         switch self {
+        //             case .createGroup(let v):
+        //                 try container.encode(0, forKey: .key)
+        //                 try container.encode(v, forKey: .associated)
+        //         }
+        //     }
+        // }
+        Ok(())
     }
 }
+
