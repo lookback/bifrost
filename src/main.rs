@@ -12,10 +12,10 @@ use crate::conv_rust::Rust;
 use crate::conv_swift::Swift;
 use crate::filter::filter_ast;
 use crate::parser::*;
-use std::fs::File;
-use std::io::prelude::Read;
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
+use std::fs::File;
+use std::io::prelude::Read;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Output {
@@ -80,7 +80,7 @@ fn main() {
         cmd: &cmd,
         lang,
         ast,
-        types
+        types,
     };
 
     print!("{}", out);
@@ -97,27 +97,27 @@ impl<'a> Display for ToOut<'a> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         let ast = self.ast.clone();
         match self.lang {
-        "pass" => {
-            let flt = filter_ast(&ast, &self.types);
-            writeln!(f, "# Generated using:")?;
-            writeln!(f, "# {}\n", &self.cmd)?;
-            writeln!(f, "{}", flt)
-        }
-        "rust" => {
-            let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
-            let flt = filter_ast(&ast, &self.types);
-            writeln!(f, "// Generated using:")?;
-            writeln!(f, "// {}\n", &self.cmd)?;
-            writeln!(f, "{}", flt)
-        }
-        "swift" => {
-            let ast: Ast<Swift> = unsafe { std::mem::transmute(ast) };
-            let flt = filter_ast(&ast, &self.types);
-            writeln!(f, "// Generated using:")?;
-            writeln!(f, "// {}\n", &self.cmd)?;
-            writeln!(f, "{}", flt)
-        }
-        _ => panic!("Unknown output")
+            "pass" => {
+                let flt = filter_ast(&ast, &self.types);
+                writeln!(f, "# Generated using:")?;
+                writeln!(f, "# {}\n", &self.cmd)?;
+                writeln!(f, "{}", flt)
+            }
+            "rust" => {
+                let ast: Ast<Rust> = unsafe { std::mem::transmute(ast) };
+                let flt = filter_ast(&ast, &self.types);
+                writeln!(f, "// Generated using:")?;
+                writeln!(f, "// {}\n", &self.cmd)?;
+                writeln!(f, "{}", flt)
+            }
+            "swift" => {
+                let ast: Ast<Swift> = unsafe { std::mem::transmute(ast) };
+                let flt = filter_ast(&ast, &self.types);
+                writeln!(f, "// Generated using:")?;
+                writeln!(f, "// {}\n", &self.cmd)?;
+                writeln!(f, "{}", flt)
+            }
+            _ => panic!("Unknown output"),
         }
     }
 }

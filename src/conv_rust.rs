@@ -2,6 +2,7 @@ use crate::parser::Enum;
 use crate::parser::Field;
 use crate::parser::Type;
 use crate::parser::TypeExpr;
+use crate::parser::TypeKind;
 use crate::parser::Union;
 use crate::parser::{Ast, Tree};
 use std::fmt::Display;
@@ -9,7 +10,6 @@ use std::fmt::{Formatter, Result};
 
 #[derive(Clone)]
 pub struct Rust {}
-
 
 fn translate_typ(typ: &str) -> &str {
     match typ {
@@ -37,12 +37,34 @@ impl<'a> Display for Ast<'a, Rust> {
         }
         for (idx, t) in self.tree.iter().enumerate() {
             if idx > 0 {
-                write!(f, "\n")?;
+                writeln!(f)?;
             }
             write!(f, "{}", t)?;
+            if let Some(t) = t.as_type() {
+                for i_name in &t.interfaces {
+                    if let Some(i_t) = self.get_tree(i_name).and_then(|t| t.as_type()) {
+                        write_impl_trait(f, i_t, t)?;
+                    }
+                }
+            }
         }
         Ok(())
     }
+}
+
+fn write_impl_trait<'a>(
+    f: &mut Formatter,
+    interface: &Type<'a, Rust>,
+    typ: &Type<'a, Rust>,
+) -> Result {
+    writeln!(f, "\nimpl {} for {} {{", interface.name, typ.name)?;
+    for field in &interface.fields {
+        writeln!(f, "    fn {}(&self) -> {} {{", field.name, field.expr)?;
+        writeln!(f, "        self.{}", field.name)?;
+        writeln!(f, "    }}")?;
+    }
+    writeln!(f, "}}")?;
+    Ok(())
 }
 
 fn write_doc(f: &mut Formatter, indent: &str, doc: Option<&str>) -> Result {
@@ -76,10 +98,23 @@ impl<'a> Display for Tree<'a, Rust> {
 impl<'a> Display for Type<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]")?;
-        writeln!(f, "pub struct {} {{", self.name)?;
-        for field in &self.fields {
-            writeln!(f, "{}", field)?;
+        match self.kind {
+            TypeKind::Type | TypeKind::Input => {
+                writeln!(
+                    f,
+                    "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"
+                )?;
+                writeln!(f, "pub struct {} {{", self.name)?;
+                for field in &self.fields {
+                    writeln!(f, "{}", field)?;
+                }
+            }
+            TypeKind::Interface => {
+                writeln!(f, "pub trait {} {{", self.name)?;
+                for field in &self.fields {
+                    fmt_field(field, f, true)?;
+                }
+            }
         }
         writeln!(f, "}}")?;
         Ok(())
@@ -88,23 +123,32 @@ impl<'a> Display for Type<'a, Rust> {
 
 impl<'a> Display for Field<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        let has_args = !self.args.is_empty();
-        let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
-            .map(|s| s == "true").unwrap_or(false);
-        if has_args {
-            if ignore_fields_with_args {
-                return Ok(());
-            }
-            panic!("Can't generate field with args");
-        }
-        write_doc(f, "    ", self.doc)?;
-        let expr = &self.expr;
-        if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
-            write!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]\n")?;
-        }
-        write!(f, "    pub {}: {},", self.name, self.expr)?;
-        Ok(())
+        fmt_field(self, f, false)
     }
+}
+
+fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) -> Result {
+    let has_args = !field.args.is_empty();
+    let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
+        .map(|s| s == "true")
+        .unwrap_or(false);
+    if has_args {
+        if ignore_fields_with_args {
+            return Ok(());
+        }
+        panic!("Can't generate field with args");
+    }
+    write_doc(f, "    ", field.doc)?;
+    if as_accessor {
+        writeln!(f, "    fn {}(&self) -> {};", field.name, field.expr)?;
+    } else {
+        let expr = &field.expr;
+        if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
+            writeln!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]")?;
+        }
+        write!(f, "    pub {}: {},", field.name, field.expr)?;
+    }
+    Ok(())
 }
 
 impl<'a> Display for TypeExpr<'a, Rust> {
@@ -135,7 +179,10 @@ impl<'a> Display for TypeExpr<'a, Rust> {
 impl<'a> Display for Enum<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]")?;
+        writeln!(
+            f,
+            "#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]"
+        )?;
         writeln!(f, "pub enum {} {{", self.name)?;
         for v in &self.values {
             write_doc(f, "    ", v.doc)?;
@@ -147,7 +194,19 @@ impl<'a> Display for Enum<'a, Rust> {
 }
 
 impl<'a> Display for Union<'a, Rust> {
-    fn fmt(&self, _: &mut Formatter) -> Result {
-        panic!("Union?!");
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(
+            f,
+            "#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]"
+        )?;
+        writeln!(
+            f,
+            "#[serde(tag = \"tag\", content = \"val\")]"
+        )?;
+        writeln!(f, "pub enum {} {{", self.name)?;
+        for name in &self.names {
+            writeln!(f, "    {}({}),", name, name)?;
+        }
+        writeln!(f, "}}")
     }
 }

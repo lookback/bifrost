@@ -1,6 +1,6 @@
 use crate::parser::{Ast, Tree};
 
-pub fn filter_ast<'a, T>(ast: &'a Ast<'a, T>, types: &Vec<&str>) -> Ast<'a, T>
+pub fn filter_ast<'a, T>(ast: &'a Ast<'a, T>, types: &[&str]) -> Ast<'a, T>
 where
     T: Clone,
 {

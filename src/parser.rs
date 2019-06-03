@@ -1,6 +1,5 @@
-use std::marker::PhantomData;
 use crate::token::{tokenize, Chunk, Token, TokenIter, SYMBOL};
-
+use std::marker::PhantomData;
 //include!("display.rs");
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -22,22 +21,20 @@ impl<'a, T> Ast<'a, T> {
         P: FnMut(&TypeExpr<'a, T>) -> bool,
     {
         for tr in &self.tree {
-            match tr {
-                Tree::Ty(t) => {
-                    for f in &t.fields {
-                        if pred(&f.expr) {
+            if let Tree::Ty(t) = tr {
+                for f in &t.fields {
+                    if pred(&f.expr) {
+                        return true;
+                    }
+                    for a in &f.args {
+                        if pred(&a.expr) {
                             return true;
-                        }
-                        for a in &f.args {
-                            if pred(&a.expr) {
-                                return true;
-                            }
                         }
                     }
                 }
-                _ => (),
             }
         }
+
         false
     }
 
@@ -64,6 +61,20 @@ impl<'a, T> Tree<'a, T> {
             Tree::En(e) => e.name,
             Tree::Un(u) => u.name,
         }
+    }
+
+    pub fn as_type(&self) -> Option<&Type<'a, T>> {
+        if let Tree::Ty(t) = self {
+            return Some(t);
+        }
+        None
+    }
+
+    pub fn as_union(&self) -> Option<&Union<'a, T>> {
+        if let Tree::Un(t) = self {
+            return Some(t);
+        }
+        None
     }
 }
 
@@ -105,16 +116,28 @@ pub struct Scalar<'a, T> {
     _ph: PhantomData<T>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum TypeKind {
+    Type,
+    Input,
+    Interface,
+}
+
 // type Starship {
 //   id: ID!
 //   name: String!
 //   length(unit: LengthUnit = METER): Float
 // }
+// interface Entity {
+//   id: ID!
+//   name: String!
+// }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Type<'a, T> {
-    pub is_input: bool,
+    pub kind: TypeKind,
     pub doc: Option<&'a str>,
     pub name: &'a str,
+    pub interfaces: Vec<&'a str>,
     pub fields: Vec<Field<'a, T>>,
     pub dir_args: Vec<DirArg<'a, T>>,
     _ph: PhantomData<T>,
@@ -144,6 +167,7 @@ pub struct TypeExpr<'a, T> {
     _ph: PhantomData<T>,
 }
 
+// @can(foo="bar")
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DirArg<'a, T> {
     pub name: &'a str,
@@ -273,7 +297,11 @@ fn expect_symbol(source: &str, tok: &mut TokenIter, symbol: SYMBOL) -> ParseResu
             if is_expected_symbol {
                 Ok(chunk)
             } else {
-                err_syntax_error(&format!("Not expected symbol: {:?}", symbol), &chunk, source)
+                err_syntax_error(
+                    &format!("Not expected symbol: {:?}", symbol),
+                    &chunk,
+                    source,
+                )
             }
         })
 }
@@ -291,8 +319,9 @@ pub fn parse<T>(source: &str) -> ParseResult<Ast<T>> {
                     Token::Name => match chunk.apply(source) {
                         "directive" => parse_directive(source, &mut tok, doc),
                         "scalar" => parse_scalar(source, &mut tok, doc),
-                        "input" => parse_type(source, &mut tok, doc, true),
-                        "type" => parse_type(source, &mut tok, doc, false),
+                        "input" => parse_type(source, &mut tok, doc, TypeKind::Input),
+                        "type" => parse_type(source, &mut tok, doc, TypeKind::Type),
+                        "interface" => parse_type(source, &mut tok, doc, TypeKind::Interface),
                         "enum" => parse_enum(source, &mut tok, doc),
                         "union" => parse_union(source, &mut tok, doc),
                         _ => err_syntax_error("Unknown keyword", &chunk, source),
@@ -393,13 +422,31 @@ fn parse_type<'a, T>(
     source: &'a str,
     tok: &mut TokenIter,
     doc: Option<&'a str>,
-    is_input: bool,
+    kind: TypeKind,
 ) -> ParseResult<Tree<'a, T>> {
     // keyword is "type" and tok is positioned after that
     tok.skip_white();
     let name = expect_name(source, tok)?;
     tok.skip_white();
     let dir_args = parse_dir_args(source, tok)?;
+    let mut interfaces = vec![];
+    if kind == TypeKind::Type {
+        // " implements <interface1> & <interface2>"
+        tok.skip_white();
+        if tok.peek_is_name(source, "implements") {
+            tok.consume();
+            loop {
+                tok.skip_white();
+                let interface = expect_name(source, tok)?;
+                interfaces.push(interface);
+                tok.skip_white();
+                if !tok.peek_is_symbol(SYMBOL::Ampers) {
+                    break;
+                }
+                tok.consume();
+            }
+        }
+    }
     expect_symbol(source, tok, SYMBOL::OpCurl)?;
     let mut fields: Vec<Field<T>> = vec![];
     loop {
@@ -413,9 +460,10 @@ fn parse_type<'a, T>(
         fields.push(parse_field(source, tok, doc)?);
     }
     Ok(Tree::Ty(Type {
-        is_input,
+        kind,
         doc,
         name,
+        interfaces,
         fields,
         dir_args,
         _ph: PhantomData,
@@ -545,7 +593,7 @@ fn parse_dir_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Dir
     }
     Ok(DirArg {
         name,
-        _ph: PhantomData
+        _ph: PhantomData,
     })
 }
 
@@ -605,6 +653,7 @@ fn parse_union<'a, T>(
         if !tok.peek_is_symbol(SYMBOL::Pipe) {
             break;
         }
+        tok.consume();
     }
     Ok(Tree::Un(Union {
         doc,
@@ -670,6 +719,57 @@ mod tests {
             "\"Some doc\"\
              \ntype Participant {\
              \n  \"\"\"Even \"more\" doc\"\"\"\
+             \n  _id: ID\
+             \n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_interface() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            interface Human {
+              _id: ID
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "interface Human {\
+             \n  _id: ID\
+             \n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_type_with_interface() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Participant implements Human {
+              _id: ID
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type Participant implements Human {\
+             \n  _id: ID\
+             \n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_type_with_interfaces() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Participant implements Human & Animal {
+              _id: ID
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type Participant implements Human & Animal {\
              \n  _id: ID\
              \n}\n"
         );
@@ -762,6 +862,17 @@ mod tests {
     }
 
     #[test]
+    fn parse_union() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            union Feral = Mink | Weasel
+            "#,
+        )?;
+        assert_eq!(r.to_string(), "union Feral = Mink | Weasel\n");
+        Ok(())
+    }
+
+    #[test]
     fn parse_type_with_field_comment() -> ParseResult<()> {
         let r = parse::<Pass>(
             r#"
@@ -770,10 +881,7 @@ mod tests {
                 user(_id: ID!): User
             }"#,
         )?;
-        assert_eq!(
-            r.to_string(),
-            "type Query {\n  user(_id: ID!): User\n}\n"
-        );
+        assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
         Ok(())
     }
 
@@ -786,12 +894,8 @@ mod tests {
                 Value2,
             }"#,
         )?;
-        assert_eq!(
-            r.to_string(),
-            "enum Foo {\n  Value1,\n  Value2,\n}\n"
-        );
+        assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
         Ok(())
     }
-
 
 }
