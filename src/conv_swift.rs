@@ -215,4 +215,3 @@ impl<'a> Display for Union<'a, Swift> {
         Ok(())
     }
 }
-
