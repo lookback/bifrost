@@ -142,6 +142,20 @@ pub struct Type<'a, T> {
     pub dir_args: Vec<DirArg<'a, T>>,
     _ph: PhantomData<T>,
 }
+impl<'a, T> Type<'a, T> {
+    #[allow(dead_code)]
+    pub fn is_field_in_interfaces(&self, ast: Ast<'a, T>, field: &Field<'a, T>) -> bool {
+        self.interfaces.iter().any(|i| {
+            ast.get_tree(i)
+                .and_then(|t| t.as_type())
+                .map(|t| {
+                    t.kind == TypeKind::Interface && t.fields.iter().any(|f| f.name == field.name)
+                })
+                .unwrap_or(false)
+        })
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Field<'a, T> {
     pub doc: Option<&'a str>,

@@ -1,5 +1,6 @@
 extern crate clap;
 
+mod conv_kotlin;
 mod conv_pass;
 mod conv_rust;
 mod conv_swift;
@@ -7,6 +8,7 @@ mod filter;
 mod parser;
 mod token;
 
+use crate::conv_kotlin::Kotlin;
 use crate::conv_pass::Pass;
 use crate::conv_rust::Rust;
 use crate::conv_swift::Swift;
@@ -41,6 +43,11 @@ fn main() {
                 .long("swift-all-optional"),
         )
         .arg(
+            clap::Arg::with_name("kotlin-all-optional")
+                .help("If all values for kotlin should be optionals")
+                .long("kotlin-all-optional"),
+        )
+        .arg(
             clap::Arg::with_name("ignore-fields-with-args")
                 .help("Don't break on fields with args, just ignore them")
                 .long("ignore-fields-with-args"),
@@ -49,7 +56,7 @@ fn main() {
             clap::Arg::with_name("lang")
                 .help("Language to convert to")
                 .required(true)
-                .possible_values(&["pass", "rust", "swift"]),
+                .possible_values(&["pass", "kotlin", "rust", "swift"]),
         )
         .arg(
             clap::Arg::with_name("source")
@@ -69,6 +76,11 @@ fn main() {
     let swift_all_optional = m.occurrences_of("swift-all-optional") > 0;
     if swift_all_optional {
         std::env::set_var("SWIFT_ALL_OPTIONAL", "true");
+    }
+
+    let kotlin_all_optional = m.occurrences_of("kotlin-all-optional") > 0;
+    if kotlin_all_optional {
+        std::env::set_var("KOTLIN_ALL_OPTIONAL", "true");
     }
 
     let ignore_fields_with_args = m.occurrences_of("ignore-fields-with-args") > 0;
@@ -101,6 +113,13 @@ impl<'a> Display for ToOut<'a> {
                 let flt = filter_ast(&ast, &self.types);
                 writeln!(f, "# Generated using:")?;
                 writeln!(f, "# {}\n", &self.cmd)?;
+                writeln!(f, "{}", flt)
+            }
+            "kotlin" => {
+                let ast: Ast<Kotlin> = unsafe { std::mem::transmute(ast) };
+                let flt = filter_ast(&ast, &self.types);
+                writeln!(f, "// Generated using:")?;
+                writeln!(f, "// {}\n", &self.cmd)?;
                 writeln!(f, "{}", flt)
             }
             "rust" => {
