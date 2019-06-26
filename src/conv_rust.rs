@@ -42,7 +42,7 @@ impl<'a> Display for Ast<'a, Rust> {
             write!(f, "{}", t)?;
             if let Some(t) = t.as_type() {
                 for i_name in &t.interfaces {
-                    if let Some(i_t) = self.get_tree(i_name).and_then(|t| t.as_type()) {
+                    if let Some(i_t) = self.get_tree(i_name).and_then(Tree::as_type) {
                         write_impl_trait(f, i_t, t)?;
                     }
                 }

@@ -1,3 +1,5 @@
+#![warn(clippy::all)]
+
 extern crate clap;
 
 mod conv_kotlin;
@@ -67,11 +69,11 @@ fn main() {
 
     let source = m.value_of("source").unwrap();
     let lang = m.value_of("lang").unwrap();
-    let types: Option<Vec<&str>> = m.values_of("types").map(|t| t.collect());
+    let types: Option<Vec<&str>> = m.values_of("types").map(Iterator::collect);
     let gql = read_file(&source).expect("Failed to read file");
 
     let ast = parse::<Pass>(&gql).expect("Parse failed");
-    let types = types.unwrap_or_else(|| ast.tree.iter().map(|t| t.name()).collect());
+    let types = types.unwrap_or_else(|| ast.tree.iter().map(Tree::name).collect());
 
     let swift_all_optional = m.occurrences_of("swift-all-optional") > 0;
     if swift_all_optional {

@@ -118,7 +118,7 @@ fn as_symbol(off: &str, index: usize) -> Option<Chunk> {
 }
 
 fn as_white(off: &str, index: usize) -> Option<Chunk> {
-    let mut len = off.chars().take_while(|c| c.is_white()).count();
+    let mut len = off.chars().take_while(TokenChar::is_white).count();
     let mut it = off.chars().skip(len);
     if it.next() == Some('#') {
         // the rest of the line is a comment, which we treat as whitespace
@@ -137,7 +137,7 @@ fn as_white(off: &str, index: usize) -> Option<Chunk> {
 }
 
 fn as_name(off: &str, index: usize) -> Option<Chunk> {
-    let len = off.chars().take_while(|c| c.is_name()).count();
+    let len = off.chars().take_while(TokenChar::is_name).count();
     if len == 0 {
         None
     } else {

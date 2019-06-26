@@ -147,7 +147,7 @@ impl<'a, T> Type<'a, T> {
     pub fn is_field_in_interfaces(&self, ast: Ast<'a, T>, field: &Field<'a, T>) -> bool {
         self.interfaces.iter().any(|i| {
             ast.get_tree(i)
-                .and_then(|t| t.as_type())
+                .and_then(Tree::as_type)
                 .map(|t| {
                     t.kind == TypeKind::Interface && t.fields.iter().any(|f| f.name == field.name)
                 })
