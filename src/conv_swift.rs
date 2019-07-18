@@ -78,7 +78,7 @@ impl<'a> Display for Type<'a, Swift> {
         write_doc(f, "", self.doc)?;
         match self.kind {
             TypeKind::Type | TypeKind::Input => {
-                write!(f, "struct {}: Codable", self.name)?;
+                write!(f, "struct {}: Codable, Equatable, Hashable", self.name)?;
                 for interface in &self.interfaces {
                     write!(f, ", {}", interface)?;
                 }
@@ -91,7 +91,7 @@ impl<'a> Display for Type<'a, Swift> {
             TypeKind::Interface => {
                 writeln!(f, "protocol {} {{", self.name)?;
                 for field in &self.fields {
-                    write_doc(f, "    ", self.doc)?;
+                    write_doc(f, "    ", field.doc)?;
                     writeln!(f, "    var {}: {} {{ get set }}", field.name, field.expr)?;
                 }
             }
@@ -136,7 +136,7 @@ impl<'a> Display for TypeExpr<'a, Swift> {
 impl<'a> Display for Enum<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "enum {}: String, Codable, CaseIterable {{", self.name)?;
+        writeln!(f, "enum {}: String, Codable, CaseIterable, Equatable, Hashable {{", self.name)?;
         for v in &self.values {
             write_doc(f, "    ", v.doc)?;
             writeln!(f, "    case {}", v.value)?;
@@ -148,7 +148,7 @@ impl<'a> Display for Enum<'a, Swift> {
 
 impl<'a> Display for Union<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        writeln!(f, "enum {} {{", self.name)?;
+        writeln!(f, "enum {}: Equatable, Hashable {{", self.name)?;
         let mut lcaseds = vec![];
         for name in &self.names {
             let mut lcased = name.to_string();
@@ -159,7 +159,7 @@ impl<'a> Display for Union<'a, Swift> {
             lcaseds.push((name, lcased));
         }
         writeln!(f, "}}")?;
-        // bullshit to make a union Codable
+        // bullshit to make an enum Codable
         writeln!(f, "\nextension {}: Codable {{", self.name)?;
         writeln!(f, "    init(from decoder: Decoder) throws {{")?;
         writeln!(
