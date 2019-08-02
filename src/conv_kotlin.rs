@@ -88,6 +88,7 @@ impl<'a> Display for Type<'a, Kotlin> {
                 if !self.interfaces.is_empty() {
                     write!(f, " {}", self.interfaces.join(", "))?;
                 }
+                writeln!(f)?;
             }
             TypeKind::Interface => {
                 writeln!(f, "interface {} {{", self.name)?;
