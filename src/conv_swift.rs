@@ -76,14 +76,27 @@ impl<'a> Display for Tree<'a, Swift> {
 impl<'a> Display for Type<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
+        let swift_all_var = std::env::var("SWIFT_ALL_VAR")
+            .map(|s| s == "true")
+            .unwrap_or(false);
+        let swift_all_class = std::env::var("SWIFT_ALL_CLASS")
+            .map(|s| s == "true")
+            .unwrap_or(false);
         match self.kind {
             TypeKind::Type | TypeKind::Input => {
-                write!(f, "struct {}: Codable, Equatable, Hashable", self.name)?;
+                if swift_all_class {
+                    write!(f, "class {}: Codable", self.name)?;
+                } else {
+                    write!(f, "struct {}: Codable, Equatable, Hashable", self.name)?;
+                }
                 for interface in &self.interfaces {
                     write!(f, ", {}", interface)?;
                 }
                 writeln!(f, " {{")?;
-                let use_var = !self.interfaces.is_empty();
+                if swift_all_class {
+                    write_init(f, self)?;
+                }
+                let use_var = !self.interfaces.is_empty() || swift_all_var;
                 for field in &self.fields {
                     write_field(f, field, use_var)?;
                 }
@@ -99,6 +112,25 @@ impl<'a> Display for Type<'a, Swift> {
         writeln!(f, "}}")?;
         Ok(())
     }
+}
+
+fn write_init<'a>(f: &mut Formatter, t: &Type<'a, Swift>) -> Result {
+    writeln!(f, "    init(")?;
+    let count = t.fields.len();
+    for (idx, field) in t.fields.iter().enumerate() {
+        write!(f, "        {}: {}", field.name, field.expr)?;
+        if idx < count - 1 {
+            writeln!(f, ",")?;
+        } else {
+            writeln!(f)?;
+        }
+    }
+    writeln!(f, "    ) {{")?;
+    for field in &t.fields {
+        writeln!(f, "        self.{} = {}", field.name, field.name)?;
+    }
+    writeln!(f, "    }}")?;
+    Ok(())
 }
 
 fn write_field<'a>(f: &mut Formatter, field: &Field<'a, Swift>, use_var: bool) -> Result {
@@ -148,7 +180,14 @@ impl<'a> Display for Enum<'a, Swift> {
 
 impl<'a> Display for Union<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
-        writeln!(f, "enum {}: Equatable, Hashable {{", self.name)?;
+        let swift_all_class = std::env::var("SWIFT_ALL_CLASS")
+            .map(|s| s == "true")
+            .unwrap_or(false);
+        if swift_all_class {
+            writeln!(f, "enum {} {{", self.name)?;
+        } else {
+            writeln!(f, "enum {}: Equatable, Hashable {{", self.name)?;
+        }
         let mut lcaseds = vec![];
         for name in &self.names {
             let mut lcased = name.to_string();
