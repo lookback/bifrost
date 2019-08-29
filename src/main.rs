@@ -45,6 +45,16 @@ fn main() {
                 .long("swift-all-optional"),
         )
         .arg(
+            clap::Arg::with_name("swift-all-var")
+                .help("If all fields in swift should be vars")
+                .long("swift-all-var"),
+        )
+        .arg(
+            clap::Arg::with_name("swift-all-class")
+                .help("If all structs in swift should be classes")
+                .long("swift-all-class"),
+        )
+        .arg(
             clap::Arg::with_name("kotlin-all-optional")
                 .help("If all values for kotlin should be optionals")
                 .long("kotlin-all-optional"),
@@ -78,6 +88,14 @@ fn main() {
     let swift_all_optional = m.occurrences_of("swift-all-optional") > 0;
     if swift_all_optional {
         std::env::set_var("SWIFT_ALL_OPTIONAL", "true");
+    }
+    let swift_all_var = m.occurrences_of("swift-all-var") > 0;
+    if swift_all_var {
+        std::env::set_var("SWIFT_ALL_VAR", "true");
+    }
+    let swift_all_class = m.occurrences_of("swift-all-class") > 0;
+    if swift_all_class {
+        std::env::set_var("SWIFT_ALL_CLASS", "true");
     }
 
     let kotlin_all_optional = m.occurrences_of("kotlin-all-optional") > 0;
