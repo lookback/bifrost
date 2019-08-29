@@ -178,6 +178,7 @@ pub struct TypeExpr<'a, T> {
     pub typ: &'a str,
     pub null: bool,
     pub arr: Arr,
+    pub default_value: Option<&'a str>,
     _ph: PhantomData<T>,
 }
 
@@ -373,6 +374,7 @@ fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a
     }
 }
 
+// directive @sanitize(trim: Boolean = true) on INPUT_FIELD_DEFINITION
 fn parse_directive<'a, T>(
     source: &'a str,
     tok: &mut TokenIter,
@@ -484,6 +486,7 @@ fn parse_type<'a, T>(
     }))
 }
 
+// trim: Boolean = true
 fn parse_field<'a, T>(
     source: &'a str,
     tok: &mut TokenIter,
@@ -522,6 +525,7 @@ fn parse_field<'a, T>(
     })
 }
 
+// Boolean = true
 fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<TypeExpr<'a, T>> {
     tok.skip_white();
     let is_arr = tok.peek_is_symbol(SYMBOL::OpSquar);
@@ -550,10 +554,20 @@ fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<T
     } else {
         Arr::No
     };
+    tok.skip_white();
+    let default_value = if tok.peek_is_symbol(SYMBOL::Equals) {
+        tok.consume();
+        tok.skip_white();
+        let value = expect_name(source, tok)?;
+        Some(value)
+    } else {
+        None
+    };
     Ok(TypeExpr {
         typ,
         null,
         arr,
+        default_value,
         _ph: PhantomData,
     })
 }
@@ -593,17 +607,20 @@ fn parse_dir_args<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Ve
 }
 
 // expect to be positioned on '@' in @can(action: "participate.view")
+// can also be without parens: @sanitize
 fn parse_dir_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<DirArg<'a, T>> {
     tok.consume();
     let name = expect_name(source, tok)?;
-    expect_symbol(source, tok, SYMBOL::OpParen)?;
-    loop {
-        // TODO, parse args
-        if tok.peek_is_symbol(SYMBOL::ClParen) {
+    if tok.peek_is_symbol(SYMBOL::OpParen) {
+        expect_symbol(source, tok, SYMBOL::OpParen)?;
+        loop {
+            // TODO, parse args
+            if tok.peek_is_symbol(SYMBOL::ClParen) {
+                tok.consume();
+                break;
+            }
             tok.consume();
-            break;
         }
-        tok.consume();
     }
     Ok(DirArg {
         name,
@@ -909,6 +926,44 @@ mod tests {
             }"#,
         )?;
         assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_directive() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+             directive @sanitize(trim: Boolean = true) on INPUT_FIELD_DEFINITION
+            "#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "directive @sanitize (\n  trim: Boolean = true\n) on INPUT_FIELD_DEFINITION\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_type_with_field_directives() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+                user(_id: ID!): User @can(name="participate.view")
+            }"#,
+        )?;
+        assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_type_with_field_directives_no_args() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+                user(_id: ID!): User @sanitize
+            }"#,
+        )?;
+        assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
         Ok(())
     }
 

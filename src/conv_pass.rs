@@ -165,6 +165,9 @@ impl<'a> Display for TypeExpr<'a, Pass> {
                 write!(f, "!")?;
             }
         }
+        if let Some(default_value) = self.default_value {
+            write!(f, " = {}", default_value)?;
+        }
         Ok(())
     }
 }

@@ -168,7 +168,11 @@ impl<'a> Display for TypeExpr<'a, Swift> {
 impl<'a> Display for Enum<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "enum {}: String, Codable, CaseIterable, Equatable, Hashable {{", self.name)?;
+        writeln!(
+            f,
+            "enum {}: String, Codable, CaseIterable, Equatable, Hashable {{",
+            self.name
+        )?;
         for v in &self.values {
             write_doc(f, "    ", v.doc)?;
             writeln!(f, "    case {}", v.value)?;
