@@ -25,7 +25,7 @@ fn translate_typ(typ: &str) -> &str {
 impl<'a> Display for Ast<'a, Kotlin> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if self.has_type(|t| t.typ == "Date") {
-            writeln!(f, "import java.util.Date\n")?;
+            writeln!(f, "import androidx.annotation.Keep\nimport java.util.Date\n")?;
         }
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "typealias ID = String\n")?;
@@ -75,7 +75,7 @@ impl<'a> Display for Type<'a, Kotlin> {
         write_doc(f, "", self.doc)?;
         match self.kind {
             TypeKind::Type | TypeKind::Input => {
-                writeln!(f, "data class {}(", self.name)?;
+                writeln!(f, "@Keep\ndata class {}(", self.name)?;
                 for (idx, field) in self.fields.iter().enumerate() {
                     write_doc(f, "    ", field.doc)?;
                     // TODO: add "override" when field is in interfaces
@@ -127,7 +127,7 @@ impl<'a> Display for TypeExpr<'a, Kotlin> {
 impl<'a> Display for Enum<'a, Kotlin> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         write_doc(f, "", self.doc)?;
-        writeln!(f, "enum class {} {{", self.name)?;
+        writeln!(f, "@Keep\nenum class {} {{", self.name)?;
         for (idx, v) in self.values.iter().enumerate() {
             write_doc(f, "    ", v.doc)?;
             let is_last = idx == self.values.len() - 1;
