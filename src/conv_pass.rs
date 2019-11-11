@@ -174,6 +174,10 @@ impl<'a> Display for TypeExpr<'a, Pass> {
 
 impl<'a> Display for FieldArg<'a, Pass> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        if let Some(doc) = self.doc {
+            write_doc(f, "\n    ", doc)?;
+            write!(f, "    ")?;
+        }
         write!(f, "{}: {}", self.name, self.expr)?;
         if let Some(def) = self.def {
             write!(f, " = {}", def)?;

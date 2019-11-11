@@ -167,6 +167,7 @@ pub struct Field<'a, T> {
 }
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct FieldArg<'a, T> {
+    pub doc: Option<&'a str>,
     pub name: &'a str,
     pub expr: TypeExpr<'a, T>,
     pub def: Option<&'a str>,
@@ -558,8 +559,20 @@ fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<T
     let default_value = if tok.peek_is_symbol(SYMBOL::Equals) {
         tok.consume();
         tok.skip_white();
-        let value = expect_name(source, tok)?;
-        Some(value)
+        if tok.peek_is_symbol(SYMBOL::OpCurl) {
+            // TODO parse value expressions in objects { Foo: 42, Bar: 'hey ho' }
+            loop {
+                tok.consume();
+                if tok.peek_is_symbol(SYMBOL::ClCurl) {
+                    tok.consume();
+                    break;
+                }
+            }
+            None
+        } else {
+            let value = expect_name(source, tok)?;
+            Some(value)
+        }
     } else {
         None
     };
@@ -573,6 +586,8 @@ fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<T
 }
 
 fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<FieldArg<'a, T>> {
+    let doc = parse_doc(source, tok)?;
+    tok.skip_white();
     let name = expect_name(source, tok)?;
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::Colon)?;
@@ -581,11 +596,24 @@ fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<F
     let def = if tok.peek_is_symbol(SYMBOL::Equals) {
         tok.consume();
         tok.skip_white();
-        Some(expect_name(source, tok)?)
+        if tok.peek_is_symbol(SYMBOL::OpCurl) {
+            // TODO parse value expressions in objects { Foo: 42, Bar: 'hey ho' }
+            loop {
+                tok.consume();
+                if tok.peek_is_symbol(SYMBOL::ClCurl) {
+                    tok.consume();
+                    break;
+                }
+            }
+            None
+        } else {
+            Some(expect_name(source, tok)?)
+        }
     } else {
         None
     };
     Ok(FieldArg {
+        doc,
         name,
         expr,
         def,
@@ -825,6 +853,23 @@ mod tests {
     }
 
     #[test]
+    fn parse_type_field_args_with_doc() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+              recording(
+                  "Hello there!"
+                  _id: ID!
+               ): Recording
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(), "type Query {\n  recording(\n    \"Hello there!\"\n    _id: ID!): Recording\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn parse_type_multi_field_args() -> ParseResult<()> {
         let r = parse::<Pass>(
             r#"
@@ -964,6 +1009,21 @@ mod tests {
             }"#,
         )?;
         assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_field_with_default_object_args() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Project {
+                recordings(
+                    sort: RecordingsSortInput = { field: CreatedAt, direction: DESC }
+                ): [Recording]!
+            }"#,
+        )?;
+        assert_eq!(r.to_string(),
+            "type Project {\n  recordings(sort: RecordingsSortInput): [Recording]!\n}\n");
         Ok(())
     }
 
