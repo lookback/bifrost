@@ -26,7 +26,10 @@ fn translate_typ(typ: &str) -> &str {
 impl<'a> Display for Ast<'a, Kotlin> {
     fn fmt(&self, f: &mut Formatter) -> Result {
         if self.has_type(|t| t.typ == "Date") {
-            writeln!(f, "import androidx.annotation.Keep\nimport java.util.Date\n")?;
+            writeln!(
+                f,
+                "import androidx.annotation.Keep\nimport java.util.Date\n"
+            )?;
         }
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "typealias ID = String\n")?;

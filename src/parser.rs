@@ -864,7 +864,8 @@ mod tests {
             }"#,
         )?;
         assert_eq!(
-            r.to_string(), "type Query {\n  recording(\n    \"Hello there!\"\n    _id: ID!): Recording\n}\n"
+            r.to_string(),
+            "type Query {\n  recording(\n    \"Hello there!\"\n    _id: ID!): Recording\n}\n"
         );
         Ok(())
     }
@@ -1022,9 +1023,10 @@ mod tests {
                 ): [Recording]!
             }"#,
         )?;
-        assert_eq!(r.to_string(),
-            "type Project {\n  recordings(sort: RecordingsSortInput): [Recording]!\n}\n");
+        assert_eq!(
+            r.to_string(),
+            "type Project {\n  recordings(sort: RecordingsSortInput): [Recording]!\n}\n"
+        );
         Ok(())
     }
-
 }
