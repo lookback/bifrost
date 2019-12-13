@@ -171,6 +171,7 @@ pub struct FieldArg<'a, T> {
     pub name: &'a str,
     pub expr: TypeExpr<'a, T>,
     pub def: Option<&'a str>,
+    pub dir_args: Vec<DirArg<'a, T>>,
     _ph: PhantomData<T>,
 }
 
@@ -587,6 +588,7 @@ fn parse_type_expr<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<T
     })
 }
 
+//   userByEmail(email: String! = "foo" @pii): User @can(action: "any.allowed")
 fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<FieldArg<'a, T>> {
     let doc = parse_doc(source, tok)?;
     tok.skip_white();
@@ -614,11 +616,14 @@ fn parse_field_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<F
     } else {
         None
     };
+    tok.skip_white();
+    let dir_args = parse_dir_args(source, tok)?;
     Ok(FieldArg {
         doc,
         name,
         expr,
         def,
+        dir_args,
         _ph: PhantomData,
     })
 }
@@ -1026,6 +1031,31 @@ mod tests {
             }"#,
         )?;
         assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_field_with_arg_directive() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+                userByEmail(email: String! @pii): User
+            }"#,
+        )?;
+        assert_eq!(r.to_string(), "type Query {\n  userByEmail(email: String!): User\n}\n");
+        Ok(())
+
+    }
+
+    #[test]
+    fn parse_type_with_multiple_field_directives() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Query {
+                recordingName: String @valid(name: true) @pii
+            }"#,
+        )?;
+        assert_eq!(r.to_string(), "type Query {\n  recordingName: String\n}\n");
         Ok(())
     }
 
