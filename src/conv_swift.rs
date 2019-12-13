@@ -19,7 +19,7 @@ fn translate_typ(typ: &str) -> &str {
         "Boolean" => "Bool",
         "ID" => "ID",
         "Date" => "Date",
-        "BigInt" => "Long",
+        "BigInt" => "Int64",
         _ => typ,
     }
 }
