@@ -385,17 +385,19 @@ fn parse_directive<'a, T>(
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::Aruba)?;
     let name = expect_name(source, tok)?;
-    expect_symbol(source, tok, SYMBOL::OpParen)?;
     let mut fields: Vec<Field<T>> = vec![];
-    loop {
-        tok.skip_white();
-        if tok.peek_is_symbol(SYMBOL::ClParen) {
-            tok.consume();
-            break;
+    if tok.peek_is_symbol(SYMBOL::OpParen) {
+        tok.consume();
+        loop {
+            tok.skip_white();
+            if tok.peek_is_symbol(SYMBOL::ClParen) {
+                tok.consume();
+                break;
+            }
+            let doc = parse_doc(source, tok)?;
+            tok.skip_white();
+            fields.push(parse_field(source, tok, doc)?);
         }
-        let doc = parse_doc(source, tok)?;
-        tok.skip_white();
-        fields.push(parse_field(source, tok, doc)?);
     }
     tok.skip_white();
     expect_word(source, tok, "on")?;
@@ -985,6 +987,20 @@ mod tests {
         assert_eq!(
             r.to_string(),
             "directive @sanitize (\n  trim: Boolean = true\n) on INPUT_FIELD_DEFINITION\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_directive_without_args() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            directive @autolog on OBJECT
+            "#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "directive @autolog on OBJECT\n"
         );
         Ok(())
     }

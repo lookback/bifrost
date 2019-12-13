@@ -59,11 +59,15 @@ impl<'a> Display for Directive<'a, Pass> {
         if let Some(doc) = self.doc {
             write_doc(f, "", doc)?;
         }
-        writeln!(f, "directive @{} (", self.name)?;
-        for field in &self.fields {
-            writeln!(f, "{}", field)?;
+        write!(f, "directive @{} ", self.name)?;
+        if !self.fields.is_empty() {
+            writeln!(f, "(")?;
+            for field in &self.fields {
+                writeln!(f, "{}", field)?;
+            }
+            write!(f, ") ")?;
         }
-        write!(f, ") on ")?;
+        write!(f, "on ")?;
         for (idx, target) in self.targets.iter().enumerate() {
             if idx > 0 {
                 write!(f, " | ")?;
