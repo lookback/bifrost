@@ -16,27 +16,34 @@ where
 }
 
 fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &str) {
+    let mut add_if_not_found = |n: &str| {
+        if let Some(tree) = ast.get_tree(n) {
+            let is_new = found.iter().find(|t2| tree.name() == t2.name()).is_none();
+            if is_new {
+                found.push(tree);
+            }
+            resolve(ast, found, n);
+        }
+    };
     match ast.get_tree(cur) {
         None => (),
         Some(tree) => match tree {
             Tree::Ty(t) => {
-                let new: Vec<_> = t
-                    .fields
-                    .iter()
-                    .filter_map(|f| ast.get_tree(f.expr.typ))
-                    .filter(|t1| found.iter().find(|t2| t1.name() == t2.name()).is_none())
-                    .collect();
-                for n in new {
-                    if found.iter().find(|t| t.name() == n.name()).is_none() {
-                        found.push(n);
-                    }
-                    resolve(ast, found, n.name());
+                for if_name in &t.interfaces {
+                    add_if_not_found(if_name);
+                }
+                for field in &t.fields {
+                    add_if_not_found(field.expr.typ);
                 }
             }
             Tree::Dr(_) => (),
             Tree::Sc(_) => (),
             Tree::En(_) => (),
-            Tree::Un(_) => (),
+            Tree::Un(t) => {
+                for typ_name in &t.names {
+                    add_if_not_found(typ_name);
+                }
+            },
         },
     }
 }
