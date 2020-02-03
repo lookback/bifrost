@@ -1,4 +1,5 @@
 #![warn(clippy::all)]
+#![allow(clippy::inefficient_to_string)]
 
 extern crate clap;
 
