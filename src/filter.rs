@@ -21,8 +21,8 @@ fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &s
             let is_new = found.iter().find(|t2| tree.name() == t2.name()).is_none();
             if is_new {
                 found.push(tree);
+                resolve(ast, found, n);
             }
-            resolve(ast, found, n);
         }
     };
     match ast.get_tree(cur) {
@@ -43,7 +43,7 @@ fn resolve<'a, T>(ast: &'a Ast<'a, T>, found: &mut Vec<&'a Tree<'a, T>>, cur: &s
                 for typ_name in &t.names {
                     add_if_not_found(typ_name);
                 }
-            },
+            }
         },
     }
 }
