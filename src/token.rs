@@ -216,6 +216,13 @@ impl<'a> Iterator for TokenIter<'a> {
         if self.offset.is_empty() {
             return None;
         }
+        let next = self.offset.chars().next().unwrap();
+        if !char::is_ascii(&next) {
+            let max = self.offset.len().min(20);
+            let context: String = self.offset.chars().take(max).collect();
+            eprintln!("Non-ascii character: {:?}", context);
+            std::process::exit(1);
+        }
         let chunk = if let Some(whit) = as_white(self.offset, self.index) {
             whit
         } else if let Some(symb) = as_symbol(self.offset, self.index) {
