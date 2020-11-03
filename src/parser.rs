@@ -398,6 +398,11 @@ fn parse_directive<'a, T>(
             let doc = parse_doc(source, tok)?;
             tok.skip_white();
             fields.push(parse_field(source, tok, doc)?);
+            tok.skip_white();
+            // fields can be comma separated
+            if tok.peek_is_symbol(SYMBOL::Comma) {
+                tok.consume();
+            }
         }
     }
     tok.skip_white();
@@ -997,16 +1002,27 @@ mod tests {
     }
 
     #[test]
+    fn parse_directive_with_comma() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+             directive @sanitize(trim: Boolean = true, foo: String) on INPUT_FIELD_DEFINITION
+            "#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "directive @sanitize (\n  trim: Boolean = true\n  foo: String\n) on INPUT_FIELD_DEFINITION\n"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn parse_directive_without_args() -> ParseResult<()> {
         let r = parse::<Pass>(
             r#"
             directive @autolog on OBJECT
             "#,
         )?;
-        assert_eq!(
-            r.to_string(),
-            "directive @autolog on OBJECT\n"
-        );
+        assert_eq!(r.to_string(), "directive @autolog on OBJECT\n");
         Ok(())
     }
 
