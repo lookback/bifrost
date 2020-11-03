@@ -1058,9 +1058,11 @@ mod tests {
                 userByEmail(email: String! @pii): User
             }"#,
         )?;
-        assert_eq!(r.to_string(), "type Query {\n  userByEmail(email: String!): User\n}\n");
+        assert_eq!(
+            r.to_string(),
+            "type Query {\n  userByEmail(email: String!): User\n}\n"
+        );
         Ok(())
-
     }
 
     #[test]

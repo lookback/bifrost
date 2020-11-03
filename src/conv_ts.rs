@@ -132,8 +132,7 @@ impl<'a> Display for Field<'a, TypeScript> {
             write_doc(f, "  ", doc)?;
         }
         write!(f, "  {}", self.name)?;
-        let is_prop_nullable =
-            !self.expr.arr.is_arr() && self.expr.null
+        let is_prop_nullable = !self.expr.arr.is_arr() && self.expr.null
             || self.expr.arr.is_arr() && self.expr.arr.is_null();
         if is_prop_nullable || ts_all_optional {
             write!(f, "?")?;
