@@ -692,6 +692,7 @@ fn parse_enum<'a, T>(
         if tok.peek_is_symbol(SYMBOL::Comma) {
             tok.consume();
         }
+        parse_dir_args::<()>(source, tok)?;
         values.push(EnumValue {
             doc,
             value,
@@ -985,6 +986,20 @@ mod tests {
         )?;
         assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
         Ok(())
+    }
+
+    #[test]
+    fn parse_enum_with_directive() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            enum Foo {
+                Value1
+                Value2 @deprecated
+            }"#,
+        )?;
+        assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
+        Ok(())
+
     }
 
     #[test]
