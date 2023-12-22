@@ -144,7 +144,8 @@ fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) 
         if expr.arr.is_arr() && expr.arr.is_null() || !expr.arr.is_arr() && expr.null {
             writeln!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]")?;
         }
-        write!(f, "    pub {}: {},", field.name, field.expr)?;
+
+        write!(f, "    pub {}: {},", escape_keyword(field.name), field.expr)?;
     }
     Ok(())
 }
@@ -203,5 +204,45 @@ impl<'a> Display for Union<'a, Rust> {
             writeln!(f, "    {}({}),", name, name)?;
         }
         writeln!(f, "}}")
+    }
+}
+
+fn escape_keyword<'a>(identifier: &'a str) -> &'a str {
+    match identifier {
+        "as" => "r#as",
+        "break" => "r#break",
+        "const" => "r#const",
+        "continue" => "r#continue",
+        "crate" => "r#crate",
+        "else" => "r#else",
+        "enum" => "r#enum",
+        "extern" => "r#extern",
+        "false" => "r#false",
+        "fn" => "r#fn",
+        "for" => "r#for",
+        "if" => "r#if",
+        "impl" => "r#impl",
+        "in" => "r#in",
+        "let" => "r#let",
+        "loop" => "r#loop",
+        "match" => "r#match",
+        "mod" => "r#mod",
+        "move" => "r#move",
+        "mut" => "r#mut",
+        "pub" => "r#pub",
+        "ref" => "r#ref",
+        "return" => "r#return",
+        "self" => "r#self",
+        "static" => "r#static",
+        "struct" => "r#struct",
+        "super" => "r#super",
+        "trait" => "r#trait",
+        "true" => "r#true",
+        "type" => "r#type",
+        "unsafe" => "r#unsafe",
+        "use" => "r#use",
+        "where" => "r#where",
+        "while" => "r#while",
+        _ => identifier,
     }
 }
