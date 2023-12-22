@@ -18,7 +18,7 @@ fn translate_typ(typ: &str) -> &str {
         "String" => "String",
         "Boolean" => "bool",
         "ID" => "ID",
-        "Date" => "Date<Utc>",
+        "Date" => "DateTime<Utc>",
         "BigInt" => "i64",
         _ => typ,
     }
@@ -31,7 +31,7 @@ impl<'a> Display for Ast<'a, Rust> {
         writeln!(f, "use serde::{{Deserialize, Serialize}};\n")?;
 
         if self.has_type(|t| t.typ == "Date") {
-            writeln!(f, "use chrono::{{Date, Utc}};\n")?;
+            writeln!(f, "use chrono::{{DateTime, Utc}};\n")?;
         }
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "pub type ID = String;\n")?;
