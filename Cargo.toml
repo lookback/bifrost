@@ -7,3 +7,8 @@ edition = "2018"
 [dependencies]
 clap = "2"
 ureq = "*"
+
+[dev-dependencies]
+chrono = "0.4"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

@@ -1,3 +1,4 @@
+use crate::indent::indent;
 use crate::parser::Enum;
 use crate::parser::Field;
 use crate::parser::Type;
@@ -7,6 +8,12 @@ use crate::parser::Union;
 use crate::parser::{Ast, Tree};
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
+
+// This is a file rather than a static str block to allow testing and working on this module as if
+// it was a regular Rust file.
+// It contains support for serializing and deserializing DateTime<Utc> as unix timestamps which is
+// what Ultron expects.
+const DATETIME_FMT: &'static str = include_str!("datetime_fmt.rs");
 
 #[derive(Clone)]
 pub struct Rust {}
@@ -32,6 +39,14 @@ impl<'a> Display for Ast<'a, Rust> {
 
         if self.has_type(|t| t.typ == "Date") {
             writeln!(f, "use chrono::{{DateTime, Utc}};\n")?;
+
+            writeln!(
+                f,
+                "mod datetime_fmt {{
+{}
+}}",
+                indent(DATETIME_FMT.trim_end(), 1)
+            )?;
         }
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "pub type ID = String;\n")?;
@@ -145,6 +160,10 @@ fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) 
             writeln!(f, "    #[serde(skip_serializing_if = \"Option::is_none\")]")?;
         }
 
+        if expr.typ == "Date" {
+            writeln!(f, r#"    #[serde(with = "datetime_fmt")]"#)?;
+        }
+
         write!(f, "    pub {}: {},", escape_keyword(field.name), field.expr)?;
     }
     Ok(())
@@ -244,5 +263,49 @@ fn escape_keyword<'a>(identifier: &'a str) -> &'a str {
         "where" => "r#where",
         "while" => "r#while",
         _ => identifier,
+    }
+}
+
+#[cfg(test)]
+mod datetime_fmt;
+
+#[cfg(test)]
+mod test {
+    use super::datetime_fmt;
+
+    use chrono::{DateTime, Utc};
+    use serde::{Deserialize, Serialize};
+    use serde_json;
+
+    #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+    struct Foo {
+        #[serde(with = "datetime_fmt")]
+        date: DateTime<Utc>,
+    }
+
+    // Serialization + symmetry gives us sufficient confidence
+    #[test]
+    fn test_datetime_fmt_symmetry() {
+        let date =
+            DateTime::<Utc>::from_timestamp_micros(1710758790944000).expect("Valid datetime");
+        let foo = Foo { date };
+
+        let serialized = serde_json::to_string(&foo).expect("Serialize");
+
+        let deserialized: Foo = serde_json::from_str(&serialized).expect("Deserialize");
+
+        assert_eq!(foo, deserialized);
+    }
+
+    #[test]
+    fn test_datetime_fmt_serialize() {
+        let foo = Foo {
+            date: DateTime::<Utc>::from_timestamp_micros(1539026461281000).expect("Valid datetime"),
+        };
+
+        let serialized = serde_json::to_string(&foo).expect("Serialize");
+        let expected = r#"{"date":1539026461.281}"#;
+
+        assert_eq!(expected, serialized);
     }
 }
