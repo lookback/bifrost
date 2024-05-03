@@ -26,6 +26,7 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Swift> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        writeln!(f, "import Foundation")?;
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "typealias ID = String;\n")?;
         }
