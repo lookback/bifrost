@@ -7,7 +7,6 @@
 pub trait TokenChar {
     fn is_name(&self) -> bool;
     fn is_white(&self) -> bool;
-    fn is_hash(&self) -> bool;
 }
 
 impl TokenChar for char {
@@ -16,9 +15,6 @@ impl TokenChar for char {
     }
     fn is_white(&self) -> bool {
         self.is_whitespace()
-    }
-    fn is_hash(&self) -> bool {
-        *self == '#'
     }
 }
 
