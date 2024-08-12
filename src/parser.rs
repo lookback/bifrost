@@ -358,12 +358,7 @@ pub fn parse<T>(source: &str) -> ParseResult<Ast<T>> {
 fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a str>> {
     tok.skip_white();
     if tok.peek_is_symbol(SYMBOL::DQuote) {
-        let start = tok.consume().unwrap();
-        tok.find(|t| t.is_symbol(SYMBOL::DQuote))
-            .map(|c| start.extend(&c))
-            .map(|c| Chunk::new(c.index + 1, c.len - 2, Token::Name))
-            .map(|c| Some(c.apply(source)))
-            .ok_or_else(|| syntax_error("Unbalanced doc quotes", &start, source))
+        maybe_parse_single_quoted_string(source, tok)
     } else if tok.peek_is_symbol(SYMBOL::TDQuote) {
         let start = tok.consume().unwrap();
         tok.find(|t| t.is_symbol(SYMBOL::TDQuote))
@@ -371,6 +366,22 @@ fn parse_doc<'a>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Option<&'a
             .map(|c| Chunk::new(c.index + 3, c.len - 6, Token::Name))
             .map(|c| Some(c.apply(source)))
             .ok_or_else(|| syntax_error("Unbalanced doc triple-quotes", &start, source))
+    } else {
+        Ok(None)
+    }
+}
+
+fn maybe_parse_single_quoted_string<'a>(
+    source: &'a str,
+    tok: &mut TokenIter,
+) -> ParseResult<Option<&'a str>> {
+    if tok.peek_is_symbol(SYMBOL::DQuote) {
+        let start = tok.consume().unwrap();
+        tok.find(|t| t.is_symbol(SYMBOL::DQuote))
+            .map(|c| start.extend(&c))
+            .map(|c| Chunk::new(c.index + 1, c.len - 2, Token::Name))
+            .map(|c| Some(c.apply(source)))
+            .ok_or_else(|| syntax_error("Unbalanced doc quotes", &start, source))
     } else {
         Ok(None)
     }
@@ -654,11 +665,17 @@ fn parse_dir_arg<'a, T>(source: &'a str, tok: &mut TokenIter) -> ParseResult<Dir
     if tok.peek_is_symbol(SYMBOL::OpParen) {
         expect_symbol(source, tok, SYMBOL::OpParen)?;
         loop {
-            // TODO, parse args
+            // TODO, actually save args
+
             if tok.peek_is_symbol(SYMBOL::ClParen) {
                 tok.consume();
                 break;
+            } else if tok.peek_is_symbol(SYMBOL::DQuote) {
+                // Double quote means start of string, which means we should look for end of string.
+                maybe_parse_single_quoted_string(source, tok).ok();
+                continue;
             }
+
             tok.consume();
         }
     }
@@ -1105,6 +1122,23 @@ mod tests {
         assert_eq!(
             r.to_string(),
             "type Project {\n  recordings(sort: RecordingsSortInput): [Recording]!\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_property_directive_with_string() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type Project {
+                rounds(
+                    includeReel: Boolean = true @deprecated(reason: "No more RoundType.Reel (ignored)")
+                ): [Round!]!
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type Project {\n  rounds(includeReel: Boolean = true): [Round!]!\n}\n"
         );
         Ok(())
     }
