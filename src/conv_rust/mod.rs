@@ -9,11 +9,11 @@ use crate::parser::{Ast, Tree};
 use std::fmt::Display;
 use std::fmt::{Formatter, Result};
 
-// This is a file rather than a static str block to allow testing and working on this module as if
-// it was a regular Rust file.
-// It contains support for serializing and deserializing DateTime<Utc> as unix timestamps which is
-// what Ultron expects.
+// These are files rather than static str block str block to allow testing and working on this module as if
+// it was a regular Rust file. The contain support for
+// serializing and deserializing DateTime<Utc> and Option<DateTime<Utc>> as unix timestamps.
 const DATETIME_FMT: &'static str = include_str!("datetime_fmt.rs");
+const DATETIME_FMT_NULLABLE: &'static str = include_str!("datetime_fmt_nullable.rs");
 
 #[derive(Clone)]
 pub struct Rust {}
@@ -33,13 +33,24 @@ fn translate_typ(typ: &str) -> &str {
 
 impl<'a> Display for Ast<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        let rust_all_optional = std::env::var("RUST_ALL_OPTIONAL")
+            .map(|s| s == "true")
+            .unwrap_or(false);
+
         writeln!(f, "#![allow(non_snake_case)]")?;
         writeln!(f, "#![allow(non_camel_case_types)]\n")?;
         writeln!(f, "use serde::{{Deserialize, Serialize}};\n")?;
 
-        if self.has_type(|t| t.typ == "Date") {
-            writeln!(f, "use chrono::{{DateTime, Utc}};\n")?;
+        let has_non_null_dates =
+            self.has_type(|t| t.typ == "Date" && !t.null) && !rust_all_optional;
+        let has_null_dates = self.has_type(|t| t.typ == "Date" && t.null) || rust_all_optional;
+        let has_dates = has_non_null_dates || has_null_dates;
 
+        if has_dates {
+            writeln!(f, "use chrono::{{DateTime, Utc}};\n")?;
+        }
+
+        if has_non_null_dates {
             writeln!(
                 f,
                 "mod datetime_fmt {{
@@ -48,6 +59,17 @@ impl<'a> Display for Ast<'a, Rust> {
                 indent(DATETIME_FMT.trim_end(), 1)
             )?;
         }
+
+        if has_null_dates {
+            writeln!(
+                f,
+                "mod datetime_fmt_nullable {{
+{}
+}}",
+                indent(DATETIME_FMT_NULLABLE.trim_end(), 1)
+            )?;
+        }
+
         if self.has_type(|t| t.typ == "ID") {
             writeln!(f, "pub type ID = String;\n")?;
         }
@@ -144,6 +166,10 @@ impl<'a> Display for Field<'a, Rust> {
 }
 
 fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) -> Result {
+    let rust_all_optional = std::env::var("RUST_ALL_OPTIONAL")
+        .map(|s| s == "true")
+        .unwrap_or(false);
+
     let has_args = !field.args.is_empty();
     let ignore_fields_with_args = std::env::var("IGNORE_FIELDS_WITH_ARGS")
         .map(|s| s == "true")
@@ -161,7 +187,11 @@ fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) 
         }
 
         if expr.typ == "Date" {
-            writeln!(f, r#"    #[serde(with = "datetime_fmt")]"#)?;
+            if expr.null || rust_all_optional {
+                writeln!(f, r#"    #[serde(with = "datetime_fmt_nullable")]"#)?;
+            } else {
+                writeln!(f, r#"    #[serde(with = "datetime_fmt")]"#)?;
+            }
         }
 
         write!(f, "    pub {}: {},", escape_keyword(field.name), field.expr)?;
@@ -171,21 +201,25 @@ fn fmt_field<'a>(field: &Field<'a, Rust>, f: &mut Formatter, as_accessor: bool) 
 
 impl<'a> Display for TypeExpr<'a, Rust> {
     fn fmt(&self, f: &mut Formatter) -> Result {
+        let rust_all_optional = std::env::var("RUST_ALL_OPTIONAL")
+            .map(|s| s == "true")
+            .unwrap_or(false);
+
         if self.arr.is_arr() {
-            if self.arr.is_null() {
+            if self.arr.is_null() || rust_all_optional {
                 write!(f, "Option<")?;
             }
             write!(f, "Vec<")?;
         }
-        if self.null {
+        if self.null || rust_all_optional {
             write!(f, "Option<")?;
         }
         write!(f, "{}", translate_typ(self.typ))?;
-        if self.null {
+        if self.null || rust_all_optional {
             write!(f, ">")?;
         }
         if self.arr.is_arr() {
-            if self.arr.is_null() {
+            if self.arr.is_null() || rust_all_optional {
                 write!(f, ">")?;
             }
             write!(f, ">")?;

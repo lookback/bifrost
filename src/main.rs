@@ -69,6 +69,11 @@ fn main() {
                 .long("typescript-all-optional"),
         )
         .arg(
+            clap::Arg::with_name("rust-all-optional")
+                .help("If all values for Rust should be Option<T>")
+                .long("rust-all-optional"),
+        )
+        .arg(
             clap::Arg::with_name("ignore-fields-with-args")
                 .help("Don't break on fields with args, just ignore them")
                 .long("ignore-fields-with-args"),
@@ -115,6 +120,11 @@ fn main() {
     let ts_all_optional = m.occurrences_of("typescript-all-optional") > 0;
     if ts_all_optional {
         std::env::set_var("TYPESCRIPT_ALL_OPTIONAL", "true");
+    }
+
+    let rust_all_optional = m.occurrences_of("rust-all-optional") > 0;
+    if rust_all_optional {
+        std::env::set_var("RUST_ALL_OPTIONAL", "true");
     }
 
     let ignore_fields_with_args = m.occurrences_of("ignore-fields-with-args") > 0;
