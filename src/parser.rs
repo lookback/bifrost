@@ -464,7 +464,6 @@ fn parse_type<'a, T>(
     tok.skip_white();
     let name = expect_name(source, tok)?;
     tok.skip_white();
-    let dir_args = parse_dir_args(source, tok)?;
     let mut interfaces = vec![];
     if kind == TypeKind::Type {
         // " implements <interface1> & <interface2>"
@@ -483,6 +482,7 @@ fn parse_type<'a, T>(
             }
         }
     }
+    let dir_args = parse_dir_args(source, tok)?;
     expect_symbol(source, tok, SYMBOL::OpCurl)?;
     let mut fields: Vec<Field<T>> = vec![];
     loop {
@@ -1139,6 +1139,22 @@ mod tests {
         assert_eq!(
             r.to_string(),
             "type Project {\n  rounds(includeReel: Boolean = true): [Round!]!\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_directive_after_interface() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+                type TaskStepOptionSingleSelect implements TaskStepOption @can(action: "project.view") {
+                    id: ID!
+                }
+            "#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type TaskStepOptionSingleSelect implements TaskStepOption {\n  id: ID!\n}\n"
         );
         Ok(())
     }
