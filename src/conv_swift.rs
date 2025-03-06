@@ -224,7 +224,7 @@ impl<'a> Display for Union<'a, Swift> {
                 lcased.1, lcased.0
             )?;
         }
-        writeln!(f, "        default: throw \"Failed to decode\"")?;
+        writeln!(f, "        default: throw DecodingError.dataCorruptedError(forKey: .tag, in: c, debugDescription: \"Failed to decode kind in {}\")", self.name)?;
         writeln!(f, "        }}")?;
         writeln!(f, "    }}")?;
         writeln!(f, "    func encode(to encoder: Encoder) throws {{")?;
