@@ -154,11 +154,12 @@ impl<'a> Display for Union<'a, Kotlin> {
             }
             writeln!(
                 f,
-                "    class {}{}(val {}: {}) : {}",
+                "    class {}{}(val {}: {}) : {}()",
                 self.name, name, lcased, name, self.name
             )?;
             lcaseds.push((name, lcased));
         }
+        writeln!(f, "}}")?;
         Ok(())
     }
 }
