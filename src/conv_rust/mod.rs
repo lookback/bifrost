@@ -39,6 +39,7 @@ impl<'a> Display for Ast<'a, Rust> {
 
         writeln!(f, "#![allow(non_snake_case)]")?;
         writeln!(f, "#![allow(non_camel_case_types)]\n")?;
+        writeln!(f, "#![cfg(not(doctest))]\n")?;
         writeln!(f, "use serde::{{Deserialize, Serialize}};\n")?;
 
         let has_non_null_dates =
