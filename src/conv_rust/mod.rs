@@ -242,6 +242,21 @@ impl<'a> Display for Enum<'a, Rust> {
             writeln!(f, "    {},", v.value)?;
         }
         writeln!(f, "}}")?;
+
+        writeln!(f, "impl {} {{", self.name)?;
+        writeln!(f, "    pub fn as_str(&self) -> &'static str {{",)?;
+        writeln!(f, "        match self {{",)?;
+        for v in &self.values {
+            writeln!(
+                f,
+                "            {}::{} => \"{}\",",
+                self.name, v.value, v.value
+            )?;
+        }
+        writeln!(f, "        }}")?;
+        writeln!(f, "    }}")?;
+        writeln!(f, "}}")?;
+
         Ok(())
     }
 }
