@@ -735,6 +735,24 @@ fn parse_union<'a, T>(
     tok.skip_white();
     expect_symbol(source, tok, SYMBOL::Equals)?;
     let mut names = vec![];
+
+    // A union can start with a pipe e.g.
+    // ```
+    // union PubSubUpdate =
+    //   | RecordingUpdated
+    //   | ContentUpdated
+    //   | LifetimeStart
+    //   | NotificationPending
+    //   | TranscodingProgress
+    //   | RefineUpdated
+    //   | RoundUpdated
+    //   | ConversationUpdated
+    // ```
+    // If so we skip it here, before the loop.
+    tok.skip_white();
+    if tok.peek_is_symbol(SYMBOL::Pipe) {
+        tok.consume();
+    }
     loop {
         tok.skip_white();
         names.push(expect_name(source, tok)?);
@@ -1016,7 +1034,6 @@ mod tests {
         )?;
         assert_eq!(r.to_string(), "enum Foo {\n  Value1,\n  Value2,\n}\n");
         Ok(())
-
     }
 
     #[test]
