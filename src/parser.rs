@@ -377,11 +377,21 @@ fn maybe_parse_single_quoted_string<'a>(
 ) -> ParseResult<Option<&'a str>> {
     if tok.peek_is_symbol(SYMBOL::DQuote) {
         let start = tok.consume().unwrap();
-        tok.find(|t| t.is_symbol(SYMBOL::DQuote))
-            .map(|c| start.extend(&c))
-            .map(|c| Chunk::new(c.index + 1, c.len - 2, Token::Name))
-            .map(|c| Some(c.apply(source)))
-            .ok_or_else(|| syntax_error("Unbalanced doc quotes", &start, source))
+        let bytes = source.as_bytes();
+        loop {
+            match tok.find(|t| t.is_symbol(SYMBOL::DQuote)) {
+                None => return Err(syntax_error("Unbalanced doc quotes", &start, source)),
+                Some(c) => {
+                    // Skip escaped quotes (\"), they are part of the string content
+                    if c.index > 0 && bytes[c.index - 1] == b'\\' {
+                        continue;
+                    }
+                    let extended = start.extend(&c);
+                    let inner = Chunk::new(extended.index + 1, extended.len - 2, Token::Name);
+                    return Ok(Some(inner.apply(source)));
+                }
+            }
+        }
     } else {
         Ok(None)
     }
@@ -1156,6 +1166,25 @@ mod tests {
         assert_eq!(
             r.to_string(),
             "type Project {\n  rounds(includeReel: Boolean = true): [Round!]!\n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_field_doc_with_escaped_quotes() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            r#"
+            type RecruitEstimate {
+              "Categorical reach label, e.g. \"Very Narrow\", \"Broad\"."
+              reach: String!
+            }"#,
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "type RecruitEstimate {\
+             \n  \"\"\"Categorical reach label, e.g. \\\"Very Narrow\\\", \\\"Broad\\\".\"\"\"\
+             \n  reach: String!\
+             \n}\n"
         );
         Ok(())
     }
