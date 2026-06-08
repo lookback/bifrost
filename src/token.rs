@@ -90,35 +90,54 @@ impl Chunk {
 }
 
 fn as_symbol(off: &str, index: usize) -> Option<Chunk> {
-    match &off[0..1] {
-        "@" => Some((SYMBOL::Aruba, 1)),
-        "{" => Some((SYMBOL::OpCurl, 1)),
-        "}" => Some((SYMBOL::ClCurl, 1)),
-        ":" => Some((SYMBOL::Colon, 1)),
-        "!" => Some((SYMBOL::Exclam, 1)),
-        "=" => Some((SYMBOL::Equals, 1)),
-        "|" => Some((SYMBOL::Pipe, 1)),
-        "," => Some((SYMBOL::Comma, 1)),
-        "(" => Some((SYMBOL::OpParen, 1)),
-        ")" => Some((SYMBOL::ClParen, 1)),
-        "[" => Some((SYMBOL::OpSquar, 1)),
-        "]" => Some((SYMBOL::ClSquar, 1)),
-        "&" => Some((SYMBOL::Ampers, 1)),
-        "\"" => match &off[0..3] {
-            "\"\"\"" => Some((SYMBOL::TDQuote, 3)),
-            _ => Some((SYMBOL::DQuote, 1)),
-        },
-        _ => None,
-    }
-    .map(|(symbol, len)| Chunk::new_symbol(symbol, index, len))
+    // All recognized symbols are single-byte ASCII, so operate on the raw bytes
+    // to safely handle leading multi-byte UTF-8 without panicking on `&off[0..1]`.
+    let first = *off.as_bytes().first()?;
+    let (symbol, len) = match first {
+        b'@' => (SYMBOL::Aruba, 1),
+        b'{' => (SYMBOL::OpCurl, 1),
+        b'}' => (SYMBOL::ClCurl, 1),
+        b':' => (SYMBOL::Colon, 1),
+        b'!' => (SYMBOL::Exclam, 1),
+        b'=' => (SYMBOL::Equals, 1),
+        b'|' => (SYMBOL::Pipe, 1),
+        b',' => (SYMBOL::Comma, 1),
+        b'(' => (SYMBOL::OpParen, 1),
+        b')' => (SYMBOL::ClParen, 1),
+        b'[' => (SYMBOL::OpSquar, 1),
+        b']' => (SYMBOL::ClSquar, 1),
+        b'&' => (SYMBOL::Ampers, 1),
+        b'"' => {
+            if off.as_bytes().get(0..3) == Some(b"\"\"\"") {
+                (SYMBOL::TDQuote, 3)
+            } else {
+                (SYMBOL::DQuote, 1)
+            }
+        }
+        _ => return None,
+    };
+    Some(Chunk::new_symbol(symbol, index, len))
 }
 
 fn as_white(off: &str, index: usize) -> Option<Chunk> {
-    let mut len = off.chars().take_while(TokenChar::is_white).count();
-    let mut it = off.chars().skip(len);
+    // Sum UTF-8 byte lengths rather than char counts: `len` is later used as a
+    // byte offset into `off`, so a multi-byte char in a comment would otherwise
+    // misalign the slice.
+    let mut len: usize = off
+        .chars()
+        .take_while(TokenChar::is_white)
+        .map(char::len_utf8)
+        .sum();
+    let mut it = off[len..].chars();
     if it.next() == Some('#') {
         // the rest of the line is a comment, which we treat as whitespace
-        let c_len = it.take_while(|c| *c != '\n').count() + 1;
+        let mut c_len: usize = 1; // for '#'
+        for c in it {
+            if c == '\n' {
+                break;
+            }
+            c_len += c.len_utf8();
+        }
         len += c_len;
         // tokenize whitespace after the comment
         if let Some(c) = as_white(&off[len..], index + len) {
@@ -133,7 +152,11 @@ fn as_white(off: &str, index: usize) -> Option<Chunk> {
 }
 
 fn as_name(off: &str, index: usize) -> Option<Chunk> {
-    let len = off.chars().take_while(TokenChar::is_name).count();
+    let len: usize = off
+        .chars()
+        .take_while(TokenChar::is_name)
+        .map(char::len_utf8)
+        .sum();
     if len == 0 {
         None
     } else {
@@ -212,13 +235,6 @@ impl<'a> Iterator for TokenIter<'a> {
         if self.offset.is_empty() {
             return None;
         }
-        let next = self.offset.chars().next().unwrap();
-        if !char::is_ascii(&next) {
-            let max = self.offset.len().min(20);
-            let context: String = self.offset.chars().take(max).collect();
-            eprintln!("Non-ascii character: {:?}", context);
-            std::process::exit(1);
-        }
         let chunk = if let Some(whit) = as_white(self.offset, self.index) {
             whit
         } else if let Some(symb) = as_symbol(self.offset, self.index) {
@@ -226,7 +242,10 @@ impl<'a> Iterator for TokenIter<'a> {
         } else if let Some(name) = as_name(self.offset, self.index) {
             name
         } else {
-            Chunk::new_unknown(self.index, 1)
+            // Unknown: advance by the full UTF-8 width of the leading char so we
+            // never split a multi-byte sequence and panic on the next `&str` slice.
+            let len = self.offset.chars().next().map(char::len_utf8).unwrap_or(1);
+            Chunk::new_unknown(self.index, len)
         };
         self.offset = &self.offset[chunk.len..];
         self.index += chunk.len;

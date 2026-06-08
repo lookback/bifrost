@@ -1190,6 +1190,58 @@ mod tests {
     }
 
     #[test]
+    fn parse_comment_with_em_dash() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            "
+            type Query {
+                # an em-dash \u{2014} like this
+                user(_id: ID!): User
+            }",
+        )?;
+        assert_eq!(r.to_string(), "type Query {\n  user(_id: ID!): User\n}\n");
+        Ok(())
+    }
+
+    #[test]
+    fn parse_doc_with_em_dash() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            "
+            \"Some \u{2014} doc\"
+            type Participant {
+              _id: ID
+            }",
+        )?;
+        assert_eq!(
+            r.to_string(),
+            "\"Some \u{2014} doc\"\
+             \ntype Participant {\
+             \n  _id: ID\
+             \n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn parse_triple_doc_with_em_dash() -> ParseResult<()> {
+        let r = parse::<Pass>(
+            "
+            \"\"\"Some \u{2014} doc\"\"\"
+            type Participant {
+              _id: ID
+            }",
+        )?;
+        // Pass normalizes triple-quoted docs without `"` or newlines back to single quotes.
+        assert_eq!(
+            r.to_string(),
+            "\"Some \u{2014} doc\"\
+             \ntype Participant {\
+             \n  _id: ID\
+             \n}\n"
+        );
+        Ok(())
+    }
+
+    #[test]
     fn parse_directive_after_interface() -> ParseResult<()> {
         let r = parse::<Pass>(
             r#"
